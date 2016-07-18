@@ -17,8 +17,7 @@ import sys
 import shutil
 import shlex
 from subprocess import Popen, PIPE
-from  ..utility import package
-from  ..database.database_doc import DatabaseDocumentation
+from  ..package
 
 def create_package(build_dir):
     zip_filename = os.path.join(build_dir, "qgis_section.zip")
@@ -51,8 +50,8 @@ if __name__ == "__main__":
     static_dir = os.path.join(source_dir, "_static")
 
     def exec_cmd(cmd):
-        print " ".join(cmd) 
-        out, err = Popen(cmd, 
+        print " ".join(cmd)
+        out, err = Popen(cmd,
                 stderr=PIPE, stdout=PIPE).communicate()
         if err :
             print "failed"

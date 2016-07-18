@@ -21,7 +21,6 @@ from subprocess import Popen, PIPE
 from tempfile import gettempdir
 from time import time
 from multiprocessing.pool import ThreadPool
-from .database.database import TestProject
 import getopt
 import sys
 
@@ -47,16 +46,9 @@ if len(excludes):
 
 # test model creation
 
-sys.stdout.write("template database creation... ")
-sys.stdout.flush()
-
 debug = "-d" in optlist or "--debug" in optlist
 
 start = time()
-
-sys.stdout.write("creating template database... ")
-TestProject.reset_template()
-sys.stdout.write("ok\n")
 
 def list_tests():
     "return module names for tests"
@@ -74,7 +66,7 @@ def list_tests():
                             ).replace(base_dir, "qgis_section").split(os.sep))[:-3]
                 if test not in excludes:
                     tests.append(test)
-    tests += ['qgis_section.docs.build']
+    # tests += ['qgis_section.docs.build']
 
     return tests
 
@@ -82,7 +74,7 @@ def list_tests():
 def run(test):
     start = time()
     our, err = subprocess.Popen(["python", "-m", test],
-            stderr=PIPE, 
+            stderr=PIPE,
             stdout=PIPE).communicate()
     if len(err):
         return 1, '%s: %s'%(test, str(err))
