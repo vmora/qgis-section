@@ -114,3 +114,9 @@ class Canvas(QGraphicsView):
 
     # void readProject( const QDomDocument & );
     # void writeProject( QDomDocument & );
+
+    def set_section_line(self, line, width):
+        print width
+        pass
+        
+
