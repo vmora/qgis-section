@@ -36,7 +36,7 @@ The geometry of projected data is expressed in 2D (r, z) coordinates.
 
 The curvilinear coordinate can be obtained with geos LineString.project function (not available with QgsGeometry, but something like QgsGeometry.asGeos().project(Point(x,y)) should do the trick).
 
-To avoid looping in python and handling all geometry cases, we could use QgsGeometry.transform(QgsCoordinateTransform) and give a custom instance of QgsCoordinateTransform with overloaded `transform` function to do the projection. The class is fairly complex, better look at the implementation to know wich functions should be overloaded.
+To avoid looping in python and handling all geometry cases, we could use QgsGeometry.transform(QgsCoordinateTransform) and give a custom instance of QgsCoordinateTransform with overloaded `transform` function to do the projection. The `transformCoords` function is used for line/ring transforms, the `transformInPlace` function is used for points, but `transformInPlace` is implemented using `transformCoords`... so overload `transformCoords` and overload the other functions, except `transformCoords` with `assert False` to be sure.
 
 The projected data are stored as memory layers in the section canvas (they are not visible in the layer tree and not stored in QgsMapLayerRegistry).
 
