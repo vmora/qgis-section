@@ -17,12 +17,12 @@ import sys
 import shutil
 import shlex
 from subprocess import Popen, PIPE
-from  ..package
+from  ..package import zip_, install
 
 def create_package(build_dir):
     zip_filename = os.path.join(build_dir, "qgis_section.zip")
-    package.zip_(zip_filename)
-    package.install(build_dir, zip_filename)
+    zip_(zip_filename)
+    install(build_dir, zip_filename)
 
 if __name__ == "__main__":
 
@@ -71,14 +71,7 @@ if __name__ == "__main__":
     if not os.path.isdir(html_dir):
         os.mkdir(html_dir)
 
-    if not os.path.isdir(os.path.join(html_dir, 'model')):
-        os.mkdir(os.path.join(html_dir, 'model'))
-    shutil.copyfile(os.path.join(source_dir, 'model', 'vue_ensemble.svg'), os.path.join(html_dir, 'model', 'vue_ensemble.svg'))
-
     create_package(build_dir)
-
-    open(os.path.join(source_dir, "generated_er_graph.rst"), "w").write(
-            "ER Graph\n########\n\n.. graphviz::\n\n"+DatabaseDocumentation().dot())
 
     exec_cmd(shlex.split("sphinx-apidoc -e -d2 -T -o")+[api_dir, module_dir, "**/*_test.py", "*_demo.py"])
     exec_cmd(shlex.split("sphinx-build -b html -d")+[doctrees_dir, source_dir, html_dir])
