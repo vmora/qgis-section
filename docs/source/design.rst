@@ -40,7 +40,12 @@ To avoid looping in python and handling all geometry cases, we could use QgsGeom
 
 The projected data are stored as memory layers in the section canvas (they are not visible in the layer tree and not stored in QgsMapLayerRegistry).
 
+Layers that have no z coordinates can be automagically excluded.
+
 **Note**: make sure that all data specific to a given section are groupped together in the Canvas class, such that on section change, they can all be delete and rebuild from scratch.
 
+**Note** Geometries that have some points near enought the section line, but have also points that are far will be an issue. A solution is to first compute the intersection between the geometry and the buffer around S, so only parts of the geometry will be present. In this case the geometry may change type (simple geometry -> collection) and we may forbid edition of those.
+
+For intersection, we can dumbly use a loop on selected features that are within the bbox of S.buffer(width). Then compute the intersection if the geometry is withing width from S.
 
 
