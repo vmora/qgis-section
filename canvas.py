@@ -1,5 +1,10 @@
 # -*- coding: UTF-8 -*-
 
+from qgis.core import QgsMapSettings
+                     #QgsExpressionContext
+                     #QgsExpressionContextScope
+                     #QgsExpressionContextUtils
+
 from PyQt4.QtCore import Qt
 from PyQt4.QtGui import QGraphicsView, QGraphicsPixmapItem, QPixmap, QImage, QGraphicsScene
 
@@ -12,6 +17,10 @@ class Canvas(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.__map.setPixmap(QPixmap.fromImage(QImage('/tmp/plop.jpg')))
         self.scene().addItem(self.__map)
+
+        self.__refresh_scheduled = False
+        #self.__expression_context_scope = QgsExpressionContextScope("Section Canvas")
+        self.__settings = QgsMapSettings()
 
     # void setMagnificationFactor( double factor );
     # double magnificationFactor() const;
@@ -79,7 +88,22 @@ class Canvas(QGraphicsView):
     # QgsExpressionContextScope& expressionContextScope() { return mExpressionContextScope; }
     # const QgsExpressionContextScope& expressionContextScope() const { return mExpressionContextScope; }
 
-    # void refresh();
+    def refresh(self):
+        if self.__refresh_scheduled:
+            return
+        self.__refresh_scheduled = True
+        QTimer.singleShot(self.__refresh_map)
+
+    def __refresh_map(self):
+        self.stopRendering()
+        self.__refresh_scheduled = False
+        #expression_context = QgsExpressionContext()
+        #expressionContext << QgsExpressionContextUtils.globalScope() \
+        #    << QgsExpressionContextUtils.projectScope() \
+        #    << QgsExpressionContextUtils.mapSettingsScope(self.__settings) \
+        #    << QgsExpressionContextScope(self.__expression_context_scope)
+        
+        
 
     # void selectionChangedSlot();
     # void saveAsImage( const QString& theFileName, QPixmap * QPixmap = nullptr, const QString& = "PNG" );
