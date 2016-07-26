@@ -3,10 +3,10 @@
   <title></title>
   <layer-tree-group expanded="1" checked="Qt::Checked" name="">
     <customproperties/>
-    <layer-tree-layer expanded="1" checked="Qt::Checked" id="test_section_any20160726160418668" name="test section any">
+    <layer-tree-layer expanded="1" checked="Qt::Checked" id="test_well_any20160726171652931" name="test well any">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" checked="Qt::Checked" id="test_well_any20160726160418675" name="test well any">
+    <layer-tree-layer expanded="1" checked="Qt::Checked" id="test_section_any20160726171652938" name="test section any">
       <customproperties/>
     </layer-tree-layer>
   </layer-tree-group>
@@ -14,10 +14,10 @@
   <mapcanvas>
     <units>meters</units>
     <extent>
-      <xmin>-3.51428571428571601</xmin>
-      <ymin>-4.59285714285714342</ymin>
-      <xmax>19.58571428571428541</xmax>
-      <ymax>16.40714285714285836</ymax>
+      <xmin>-0.27500000000000036</xmin>
+      <ymin>-1.40000000000000036</ymin>
+      <xmax>11.27500000000000036</xmax>
+      <ymax>15.40000000000000036</ymax>
     </extent>
     <rotation>0</rotation>
     <projections>0</projections>
@@ -38,8 +38,8 @@
   </mapcanvas>
   <layer-tree-canvas>
     <custom-order enabled="0">
-      <item>test_section_any20160726160418668</item>
-      <item>test_well_any20160726160418675</item>
+      <item>test_well_any20160726171652931</item>
+      <item>test_section_any20160726171652938</item>
     </custom-order>
   </layer-tree-canvas>
   <mapcanvas>
@@ -68,20 +68,20 @@
     <layer_coordinate_transform_info/>
   </mapcanvas>
   <legend updateDrawingOrder="true">
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="test section any" showFeatureCount="0">
-      <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="test_section_any20160726160418668" visible="1"/>
-      </filegroup>
-    </legendlayer>
     <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="test well any" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="test_well_any20160726160418675" visible="1"/>
+        <legendlayerfile isInOverview="0" layerid="test_well_any20160726171652931" visible="1"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="test section any" showFeatureCount="0">
+      <filegroup open="true" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="test_section_any20160726171652938" visible="1"/>
       </filegroup>
     </legendlayer>
   </legend>
   <projectlayers>
     <maplayer minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" geometry="Line" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
-      <id>test_section_any20160726160418668</id>
+      <id>test_section_any20160726171652938</id>
       <datasource>./test.sqlite|layername=section</datasource>
       <shortname>test section any</shortname>
       <title></title>
@@ -121,7 +121,7 @@
               <prop k="customdash_unit" v="MM"/>
               <prop k="draw_inside_polygon" v="0"/>
               <prop k="joinstyle" v="bevel"/>
-              <prop k="line_color" v="207,127,166,255"/>
+              <prop k="line_color" v="235,75,195,255"/>
               <prop k="line_style" v="solid"/>
               <prop k="line_width" v="0.26"/>
               <prop k="line_width_unit" v="MM"/>
@@ -181,7 +181,7 @@
       </conditionalstyles>
     </maplayer>
     <maplayer minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" geometry="Line" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
-      <id>test_well_any20160726160418675</id>
+      <id>test_well_any20160726171652931</id>
       <datasource>./test.sqlite|layername=well</datasource>
       <shortname>test well any</shortname>
       <title></title>
@@ -221,7 +221,7 @@
               <prop k="customdash_unit" v="MM"/>
               <prop k="draw_inside_polygon" v="0"/>
               <prop k="joinstyle" v="bevel"/>
-              <prop k="line_color" v="21,86,184,255"/>
+              <prop k="line_color" v="115,207,227,255"/>
               <prop k="line_style" v="solid"/>
               <prop k="line_width" v="0.26"/>
               <prop k="line_width_unit" v="MM"/>

@@ -1,16 +1,17 @@
 # -*- coding: UTF-8 -*-
 
-from qgis.core import QGis, \
-                      QgsFeatureRequest,\
-                      QgsRectangle,\
-                      QgsMapLayerRegistry,\
-                      QgsMapLayer,\
-                      QgsVectorLayer,\
-                      QgsFeature,\
-                      QgsGeometry,\
-                      QgsPoint,\
-                      QgsCoordinateReferenceSystem, \
-                      qgsfunction
+#from qgis.core import QGis, \
+#                      QgsFeatureRequest,\
+#                      QgsRectangle,\
+#                      QgsMapLayerRegistry,\
+#                      QgsMapLayer,\
+#                      QgsVectorLayer,\
+#                      QgsFeature,\
+#                      QgsGeometry,\
+#                      QgsPoint,\
+#                      QgsCoordinateReferenceSystem
+
+from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
 
 from qgis.gui import QgsMapTool, \
                      QgsMapCanvas, \
@@ -18,7 +19,8 @@ from qgis.gui import QgsMapTool, \
                      QgsMapToolPan,\
                      QgsMapToolZoom,\
                      QgsMapToolIdentify,\
-                     QgsMapToolIdentifyFeature
+                     QgsMapToolIdentifyFeature,\
+                     QgsRubberBand
 
 from PyQt4.QtCore import Qt, pyqtSignal
 from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
@@ -45,7 +47,6 @@ class LineSelectTool(QgsMapTool):
         x = event.pos().x()
         y = event.pos().y()
         for layer in self.canvas.layers():
-
             layerPoint = self.toLayerCoordinates(layer, event.pos())
             if layer.type() == QgsMapLayer.VectorLayer and layer.geometryType() == QGis.Line:
 
@@ -105,6 +106,8 @@ class Plugin():
         self.__map_tool_changed(self.iface.mapCanvas().mapTool())
         self.iface.mapCanvas().mapToolSet.connect(self.__map_tool_changed)
 
+        self.highlighter = None
+
     def __map_tool_changed(self, map_tool):
         if isinstance(map_tool, QgsMapToolPan):
             self.tool = QgsMapToolPan(self.canvas)
@@ -127,11 +130,12 @@ class Plugin():
         self.canvas_dock.setParent(None)
         self.toolbar.setParent(None)
         self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
+        if self.highlighter is not None:
+            self.iface.mapCanvas().scene().removeItem(self.highlighter)
 
     def set_section_line_(self, layer_id, feature_id):
         print "SelecteD", layer_id, feature_id
         line = None
-        #self.canvas.set_section_line(line, float(self.buffer_width.text()))
         self.tool.line_clicked.disconnect()
         self.tool.setParent(None)
         self.tool = None
@@ -139,10 +143,30 @@ class Plugin():
         self.oldtool = None
 
         layer = QgsMapLayerRegistry.instance().mapLayer(layer_id)
+        line = None
         for f in layer.getFeatures(QgsFeatureRequest(feature_id)):
-            geom = f.geometry()
-            buffer = geom.buffer(float(self.buffer_width.text()), 4)
+            line = QgsGeometry(f.geometry())
+            break
 
+        if line is None:
+            iface.messageBar().pushInfo("note", "no selected line")
+            return
+
+        width = float(self.buffer_width.text())
+        buff = line.buffer(width, 4)
+        if self.highlighter is not None:
+            self.iface.mapCanvas().scene().removeItem(self.highlighter)
+        self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon)
+        self.highlighter.addGeometry(buff, None)
+         
+        # select features from layers with Z in geometry
+        for layer in self.iface.mapCanvas().layers():
+            if QgsWKBTypes.hasZ(int(layer.wkbType())):
+                for feature in layer.getFeatures(QgsFeatureRequest(buff.boundingBox())):
+                    if feature.geometry().intersects(buff):
+                        print layer.name(), feature.id()
+
+        
             # debug visu
             # ___layer = QgsVectorLayer("polygon?crs=epsg:2154&field=id:integer&field=name:string(20)&index=yes",
             #         "temporary_poly",
@@ -159,7 +183,6 @@ class Plugin():
             # self.iface.mapCanvas().setLayerSet([QgsMapCanvasLayer(___layer)])
             # self.iface.mapCanvas().refreshAllLayers()
 
-            print 'done'
 
     def set_section_line(self):
         print "set_section_line"
