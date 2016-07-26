@@ -9,7 +9,8 @@ from qgis.core import QGis, \
                       QgsFeature,\
                       QgsGeometry,\
                       QgsPoint,\
-                      QgsCoordinateReferenceSystem
+                      QgsCoordinateReferenceSystem, \
+                      qgsfunction
 
 from qgis.gui import QgsMapTool, \
                      QgsMapCanvas, \
@@ -22,7 +23,14 @@ from qgis.gui import QgsMapTool, \
 from PyQt4.QtCore import Qt, pyqtSignal
 from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
 
-from .canvas import Canvas
+
+#@qgsfunction(args="auto", group='Custom')
+#def square_buffer(feature, parent):
+#    geom = feature.geometry()
+#    wkt = geom.exportToWkt().replace('LineStringZ', 'LINESTRING')
+#    print wkt
+#    return QgsGeometry.fromWkt(geom_from_wkt(wkt).buffer(30., cap_style=2).wkt)
+
 
 class LineSelectTool(QgsMapTool):
     line_clicked = pyqtSignal(str, int)
@@ -50,10 +58,6 @@ class LineSelectTool(QgsMapTool):
 class Plugin():
     def __init__(self, iface):
         self.iface = iface
-        #self.canvas_dock = QDockWidget('Qgis section')
-        #self.canvas = Canvas()
-        #self.canvas_dock.setWidget(self.canvas)
-        #self.iface.addDockWidget(Qt.RightDockWidgetArea, self.canvas_dock)
 
         self.toolbar = QToolBar()
         self.toolbar.addAction('select line').triggered.connect(self.set_section_line)
@@ -115,11 +119,11 @@ class Plugin():
             self.canvas.setMapTool(None)
             self.tool = None
 
-
     def initGui(self):
     	pass
 
     def unload(self):
+        self.iface.removeDockWidget(self.canvas_dock)
         self.canvas_dock.setParent(None)
         self.toolbar.setParent(None)
         self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
