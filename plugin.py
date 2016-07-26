@@ -22,7 +22,7 @@ from qgis.gui import QgsMapTool, \
                      QgsMapToolIdentifyFeature,\
                      QgsRubberBand
 
-from PyQt4.QtCore import Qt, pyqtSignal
+from PyQt4.QtCore import Qt, pyqtSignal, QVariant
 from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
 
 
@@ -55,6 +55,10 @@ class LineSelectTool(QgsMapTool):
                     self.line_clicked.emit(layer.id(), feat.id())
                     return
         self.line_clicked.emit(None, None)
+class SectionTransform(QgsCoordinateTransform):
+    def __init__(self, line):
+        QgsCoordinateTransform.__init__(self)
+
 
 class Plugin():
     def __init__(self, iface):
@@ -71,29 +75,9 @@ class Plugin():
         self.tool = None
         self.old_tool = None
 
-        # 2154 just for the fun, we don't care as long as the unit is meters
-        layer = QgsVectorLayer("Point?crs=epsg:2154&field=id:integer&field=name:string(20)&index=yes",
-                "temporary_points",
-                "memory")
-        layer.beginEditCommand("test")
-        provider = layer.dataProvider()
-        for pt in [[0,0], [0,-100], [10,10]]:
-            fet = QgsFeature()
-            fet.setGeometry(QgsGeometry.fromPoint(QgsPoint(*pt)))
-            fet.setAttributes([1, "Johny"])
-            provider.addFeatures([fet])
-        layer.endEditCommand()
-
-        QgsMapLayerRegistry.instance().addMapLayer(layer, False)
-
-        print 'validity', layer.isValid(), layer.extent().xMaximum(), layer.featureCount()
-        self.layer= layer
+        self.layers = []
 
         canvas = QgsMapCanvas()
-        canvas.setLayerSet([QgsMapCanvasLayer(layer)])
-
-        canvas.setCurrentLayer(layer)
-        canvas.zoomToFullExtent()
         canvas.setWheelAction(QgsMapCanvas.WheelZoomToMouseCursor)
 
         self.canvas_dock = QDockWidget('Qgis section other')
@@ -130,8 +114,18 @@ class Plugin():
         self.canvas_dock.setParent(None)
         self.toolbar.setParent(None)
         self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
+        self.cleanup()
+
+    def cleanup(self):
         if self.highlighter is not None:
             self.iface.mapCanvas().scene().removeItem(self.highlighter)
+            self.highlighter = None
+
+        # remove memory layers
+        self.canvas.setLayerSet([])
+        for l in self.layers:
+            QgsMapLayerRegistry.instance().removeMapLayer(l.id())
+        self.layers = []
 
     def set_section_line_(self, layer_id, feature_id):
         print "SelecteD", layer_id, feature_id
@@ -151,21 +145,56 @@ class Plugin():
         if line is None:
             iface.messageBar().pushInfo("note", "no selected line")
             return
+        self.cleanup()
+
+        transfo = SectionTransform(line)
 
         width = float(self.buffer_width.text())
         buff = line.buffer(width, 4)
-        if self.highlighter is not None:
-            self.iface.mapCanvas().scene().removeItem(self.highlighter)
+
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon)
         self.highlighter.addGeometry(buff, None)
          
         # select features from layers with Z in geometry
         for layer in self.iface.mapCanvas().layers():
             if QgsWKBTypes.hasZ(int(layer.wkbType())):
+                print QGis.vectorGeometryType(layer.geometryType()), "layer"
+                # 2154 just for the fun, we don't care as long as the unit is meters
+                new_layer = QgsVectorLayer(
+                        "{geomType}?crs=epsg:2154&index=yes".format(
+                            geomType={QGis.Point:"Point", QGis.Line:"LineString", QGis.Polygon:"Polygon"}[layer.geometryType()]
+                            ),
+                        "projected_"+layer.name(),
+                        "memory")
+                provider = new_layer.dataProvider()
+                provider.addAttributes([layer.fields().field(f) for f in range(layer.fields().count())])
+                new_layer.updateFields()
+                new_layer.beginEditCommand("project")
+
+                print "new_layer", new_layer, new_layer.isValid()
+                features = []
                 for feature in layer.getFeatures(QgsFeatureRequest(buff.boundingBox())):
                     if feature.geometry().intersects(buff):
-                        print layer.name(), feature.id()
+                        geom = QgsGeometry(feature.geometry()) #.intersection(buff)
+                        if geom.type() == layer.geometryType(): # @todo: handle the case of multi
+                            geom.transform(transfo)
+                            new_feature = QgsFeature()
+                            new_feature.setGeometry(geom)
+                            new_feature.setAttributes(feature.attributes())
+                            features.append(new_feature)
+                provider.addFeatures(features)
+                new_layer.endEditCommand()
+                print ",".join([new_layer.fields()[i].name() for i in range(new_layer.fields().count())])
+                print ",".join([layer.fields()[i].name() for i in range(layer.fields().count())])
 
+                self.layers.append(new_layer)
+                print "new_layer", new_layer.isValid()
+                for fet in features:
+                    print fet.geometry().exportToWkt()
+                QgsMapLayerRegistry.instance().addMapLayer(new_layer, True)
+
+        self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers])
+        self.canvas.zoomToFullExtent()
         
             # debug visu
             # ___layer = QgsVectorLayer("polygon?crs=epsg:2154&field=id:integer&field=name:string(20)&index=yes",
