@@ -24,7 +24,7 @@ from qgis.gui import QgsMapTool, \
 
 from PyQt4.QtCore import Qt, pyqtSignal, QVariant
 from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
-
+import shapely
 
 #@qgsfunction(args="auto", group='Custom')
 #def square_buffer(feature, parent):
@@ -55,9 +55,21 @@ class LineSelectTool(QgsMapTool):
                     self.line_clicked.emit(layer.id(), feat.id())
                     return
         self.line_clicked.emit(None, None)
-class SectionTransform(QgsCoordinateTransform):
+
+class SectionTransform():
     def __init__(self, line):
-        QgsCoordinateTransform.__init__(self)
+        "line is a QgsGeometry"
+        self.__line = shapely.wkt.loads(line.exportToWkt().replace('Z', ''))
+        self.__length = self.__line.length
+
+    def apply(self, geometry):
+        "returns a transformed geometry"
+        geom = shapely.wkt.loads(geometry.exportToWkt().replace('Z', ''))
+        length = self.__length
+        line = self.__line
+        def fun(x, y, z):
+            return ( line.project(shapely.geometry.Point(x, y))*length, z, 0)
+        return QgsGeometry.fromWkt(shapely.ops.transform(fun, geom).wkt)
 
 
 class Plugin():
@@ -158,7 +170,6 @@ class Plugin():
         # select features from layers with Z in geometry
         for layer in self.iface.mapCanvas().layers():
             if QgsWKBTypes.hasZ(int(layer.wkbType())):
-                print QGis.vectorGeometryType(layer.geometryType()), "layer"
                 # 2154 just for the fun, we don't care as long as the unit is meters
                 new_layer = QgsVectorLayer(
                         "{geomType}?crs=epsg:2154&index=yes".format(
@@ -171,27 +182,22 @@ class Plugin():
                 new_layer.updateFields()
                 new_layer.beginEditCommand("project")
 
-                print "new_layer", new_layer, new_layer.isValid()
                 features = []
                 for feature in layer.getFeatures(QgsFeatureRequest(buff.boundingBox())):
                     if feature.geometry().intersects(buff):
                         geom = QgsGeometry(feature.geometry()) #.intersection(buff)
                         if geom.type() == layer.geometryType(): # @todo: handle the case of multi
-                            geom.transform(transfo)
                             new_feature = QgsFeature()
-                            new_feature.setGeometry(geom)
+                            new_feature.setGeometry(transfo.apply(geom))
                             new_feature.setAttributes(feature.attributes())
                             features.append(new_feature)
                 provider.addFeatures(features)
                 new_layer.endEditCommand()
-                print ",".join([new_layer.fields()[i].name() for i in range(new_layer.fields().count())])
-                print ",".join([layer.fields()[i].name() for i in range(layer.fields().count())])
 
                 self.layers.append(new_layer)
-                print "new_layer", new_layer.isValid()
                 for fet in features:
                     print fet.geometry().exportToWkt()
-                QgsMapLayerRegistry.instance().addMapLayer(new_layer, True)
+                QgsMapLayerRegistry.instance().addMapLayer(new_layer, False)
 
         self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers])
         self.canvas.zoomToFullExtent()
