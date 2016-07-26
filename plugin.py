@@ -24,7 +24,10 @@ from qgis.gui import QgsMapTool, \
 
 from PyQt4.QtCore import Qt, pyqtSignal, QVariant
 from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
-import shapely
+
+from shapely.wkt import loads
+from shapely.ops import transform
+from shapely.geometry import Point
 
 #@qgsfunction(args="auto", group='Custom')
 #def square_buffer(feature, parent):
@@ -59,17 +62,17 @@ class LineSelectTool(QgsMapTool):
 class SectionTransform():
     def __init__(self, line):
         "line is a QgsGeometry"
-        self.__line = shapely.wkt.loads(line.exportToWkt().replace('Z', ''))
+        self.__line = loads(line.exportToWkt().replace('Z', ''))
         self.__length = self.__line.length
 
     def apply(self, geometry):
         "returns a transformed geometry"
-        geom = shapely.wkt.loads(geometry.exportToWkt().replace('Z', ''))
+        geom = loads(geometry.exportToWkt().replace('Z', ''))
         length = self.__length
         line = self.__line
         def fun(x, y, z):
-            return ( line.project(shapely.geometry.Point(x, y))*length, z, 0)
-        return QgsGeometry.fromWkt(shapely.ops.transform(fun, geom).wkt)
+            return ( line.project(Point(x, y))*length, z, 0)
+        return QgsGeometry.fromWkt(transform(fun, geom).wkt)
 
 
 class Plugin():
@@ -166,7 +169,7 @@ class Plugin():
 
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon)
         self.highlighter.addGeometry(buff, None)
-         
+
         # select features from layers with Z in geometry
         for layer in self.iface.mapCanvas().layers():
             if QgsWKBTypes.hasZ(int(layer.wkbType())):
@@ -202,7 +205,7 @@ class Plugin():
 
         self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers])
         self.canvas.zoomToFullExtent()
-        
+
             # debug visu
             # ___layer = QgsVectorLayer("polygon?crs=epsg:2154&field=id:integer&field=name:string(20)&index=yes",
             #         "temporary_poly",
