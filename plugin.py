@@ -142,11 +142,11 @@ class Plugin():
     def set_section_line_(self, layer_id, feature_id):
         print "SelecteD", layer_id, feature_id
         line = None
-        self.tool.line_clicked.disconnect()
-        self.tool.setParent(None)
-        self.tool = None
-        self.iface.mapCanvas().setMapTool(self.old_tool)
-        self.oldtool = None
+        #self.tool.line_clicked.disconnect()
+        #self.tool.setParent(None)
+        #self.tool = None
+        #self.iface.mapCanvas().setMapTool(self.old_tool)
+        #self.oldtool = None
 
         layer = QgsMapLayerRegistry.instance().mapLayer(layer_id)
         line = None
@@ -179,6 +179,7 @@ class Plugin():
                         "memory")
                 provider = new_layer.dataProvider()
                 provider.addAttributes([layer.fields().field(f) for f in range(layer.fields().count())])
+                new_layer.setRendererV2(layer.rendererV2().clone())
                 new_layer.updateFields()
                 new_layer.beginEditCommand("project")
 
