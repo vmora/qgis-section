@@ -1,26 +1,7 @@
 # -*- coding: UTF-8 -*-
 
-#from qgis.core import QGis, \
-#                      QgsFeatureRequest,\
-#                      QgsRectangle,\
-#                      QgsMapLayerRegistry,\
-#                      QgsMapLayer,\
-#                      QgsVectorLayer,\
-#                      QgsFeature,\
-#                      QgsGeometry,\
-#                      QgsPoint,\
-#                      QgsCoordinateReferenceSystem
-
 from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
-
-from qgis.gui import QgsMapTool, \
-                     QgsMapCanvas, \
-                     QgsMapCanvasLayer,\
-                     QgsMapToolPan,\
-                     QgsMapToolZoom,\
-                     QgsMapToolIdentify,\
-                     QgsMapToolIdentifyFeature,\
-                     QgsRubberBand
+from qgis.gui import *
 
 from PyQt4.QtCore import Qt, pyqtSignal, QVariant
 from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
@@ -56,6 +37,7 @@ class LineSelectTool(QgsMapTool):
                 for feat in layer.getFeatures(QgsFeatureRequest(
                     QgsRectangle(layerPoint.x() - radius, layerPoint.y() - radius, layerPoint.x() + radius, layerPoint.y() + radius))):
                     self.line_clicked.emit(layer.id(), feat.id())
+                    print "found line"
                     return
         self.line_clicked.emit(None, None)
 
@@ -165,7 +147,10 @@ class Plugin():
         transfo = SectionTransform(line)
 
         width = float(self.buffer_width.text())
-        buff = line.buffer(width, 4)
+        if line.length > width:
+            buff = line.buffer(width, 4)
+        else: # line is vertical and degenerates to a point, so make the buffer around the first point
+            buff = line.asPolyline()[0].buffer(width, 4)
 
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon)
         self.highlighter.addGeometry(buff, None)
@@ -188,13 +173,20 @@ class Plugin():
 
                 features = []
                 for feature in layer.getFeatures(QgsFeatureRequest(buff.boundingBox())):
-                    if feature.geometry().intersects(buff):
-                        geom = QgsGeometry(feature.geometry()) #.intersection(buff)
-                        if geom.type() == layer.geometryType(): # @todo: handle the case of multi
-                            new_feature = QgsFeature()
-                            new_feature.setGeometry(transfo.apply(geom))
-                            new_feature.setAttributes(feature.attributes())
-                            features.append(new_feature)
+                    # vertical lines and polygons are not valid, so the intersection does not seem to work
+                    # we convert them to a multitype of reduced dimension (polygon -> multi line, line -> multi-point
+                    inter = QgsGeometry(feature.geometry()) #.intersection(buff)
+                    if inter.type() == QGis.Line:
+                        inter = QgsGeometry.fromMultiPoint(inter.asPolyline())
+                    elif inter.type() == QGis.Polygon:
+                        inter = QgsGeometry.fromMultiLine(inter.asPolygon())
+
+                    if inter.intersects(buff):
+                        geom =  QgsGeometry(feature.geometry())
+                        new_feature = QgsFeature()
+                        new_feature.setGeometry(transfo.apply(geom))
+                        new_feature.setAttributes(feature.attributes())
+                        features.append(new_feature)
                 provider.addFeatures(features)
                 new_layer.endEditCommand()
 
