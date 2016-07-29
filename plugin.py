@@ -18,6 +18,9 @@ from shapely.geometry import Point
 #    return QgsGeometry.fromWkt(geom_from_wkt(wkt).buffer(30., cap_style=2).wkt)
 
 
+
+
+
 class LineSelectTool(QgsMapTool):
     line_clicked = pyqtSignal(str, int)
     def __init__(self, canvas):
@@ -33,12 +36,15 @@ class LineSelectTool(QgsMapTool):
         for layer in self.canvas.layers():
             layerPoint = self.toLayerCoordinates(layer, event.pos())
             if layer.type() == QgsMapLayer.VectorLayer and layer.geometryType() == QGis.Line:
+                print "line layer ", layer.name()
 
                 for feat in layer.getFeatures(QgsFeatureRequest(
                     QgsRectangle(layerPoint.x() - radius, layerPoint.y() - radius, layerPoint.x() + radius, layerPoint.y() + radius))):
-                    self.line_clicked.emit(layer.id(), feat.id())
-                    print "found line"
-                    return
+                    print layer.name()
+                    if feat.geometry().intersects(QgsGeometry.fromPoint(layerPoint).buffer(radius, 2)):
+                        self.line_clicked.emit(layer.id(), feat.id())
+                        print "found line in ", layer.name()
+                        return
         self.line_clicked.emit(None, None)
 
 class SectionTransform():
@@ -134,14 +140,11 @@ class Plugin():
         #self.oldtool = None
 
         layer = QgsMapLayerRegistry.instance().mapLayer(layer_id)
-        line = None
-        for f in layer.getFeatures(QgsFeatureRequest(feature_id)):
-            line = QgsGeometry(f.geometry())
-            break
-
-        if line is None:
-            iface.messageBar().pushInfo("note", "no selected line")
+        if layer is None:
+            self.iface.messageBar().pushInfo("note", "no selected line")
             return
+        for feat in layer.getFeatures(QgsFeatureRequest(feature_id)):
+            line = QgsGeometry(feat.geometry())
         self.cleanup()
 
         transfo = SectionTransform(line)
@@ -152,8 +155,9 @@ class Plugin():
         else: # line is vertical and degenerates to a point, so make the buffer around the first point
             buff = line.asPolyline()[0].buffer(width, 4)
 
-        self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon)
-        self.highlighter.addGeometry(buff, None)
+        self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Line)
+        self.highlighter.addGeometry(line, None)
+        self.highlighter.setWidth(10)
 
         # select features from layers with Z in geometry
         for layer in self.iface.mapCanvas().layers():
@@ -172,7 +176,7 @@ class Plugin():
                 new_layer.beginEditCommand("project")
 
                 features = []
-                for feature in layer.getFeatures(QgsFeatureRequest(buff.boundingBox())):
+                for feature in layer.getFeatures():#QgsFeatureRequest(buff.boundingBox())):
                     # vertical lines and polygons are not valid, so the intersection does not seem to work
                     # we convert them to a multitype of reduced dimension (polygon -> multi line, line -> multi-point
                     inter = QgsGeometry(feature.geometry()) #.intersection(buff)
@@ -181,8 +185,10 @@ class Plugin():
                     elif inter.type() == QGis.Polygon:
                         inter = QgsGeometry.fromMultiLine(inter.asPolygon())
 
+                    print inter.exportToWkt()
                     if inter.intersects(buff):
                         geom =  QgsGeometry(feature.geometry())
+                        print geom.exportToWkt()
                         new_feature = QgsFeature()
                         new_feature.setGeometry(transfo.apply(geom))
                         new_feature.setAttributes(feature.attributes())
