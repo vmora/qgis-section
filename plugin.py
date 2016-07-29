@@ -8,7 +8,7 @@ from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
 
 from shapely.wkt import loads
 from shapely.ops import transform
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString
 
 #@qgsfunction(args="auto", group='Custom')
 #def square_buffer(feature, parent):
@@ -17,12 +17,8 @@ from shapely.geometry import Point
 #    print wkt
 #    return QgsGeometry.fromWkt(geom_from_wkt(wkt).buffer(30., cap_style=2).wkt)
 
-
-
-
-
 class LineSelectTool(QgsMapTool):
-    line_clicked = pyqtSignal(str, int)
+    line_clicked = pyqtSignal(str)
     def __init__(self, canvas):
         QgsMapTool.__init__(self, canvas)
         self.canvas = canvas
@@ -31,21 +27,19 @@ class LineSelectTool(QgsMapTool):
         print "canvasReleaseEvent"
         #Get the click
         radius = QgsMapTool.searchRadiusMU(self.canvas)
-        x = event.pos().x()
-        y = event.pos().y()
         for layer in self.canvas.layers():
             layerPoint = self.toLayerCoordinates(layer, event.pos())
+            rect = QgsRectangle(layerPoint.x() - radius, layerPoint.y() - radius, layerPoint.x() + radius, layerPoint.y() + radius)
+            rect_geom = QgsGeometry.fromRect(rect)
             if layer.type() == QgsMapLayer.VectorLayer and layer.geometryType() == QGis.Line:
-                print "line layer ", layer.name()
-
-                for feat in layer.getFeatures(QgsFeatureRequest(
-                    QgsRectangle(layerPoint.x() - radius, layerPoint.y() - radius, layerPoint.x() + radius, layerPoint.y() + radius))):
-                    print layer.name()
-                    if feat.geometry().intersects(QgsGeometry.fromPoint(layerPoint).buffer(radius, 2)):
-                        self.line_clicked.emit(layer.id(), feat.id())
+                for feat in layer.getFeatures(QgsFeatureRequest(rect)):
+                    if feat.geometry().intersects(rect_geom):
                         print "found line in ", layer.name()
+                        self.line_clicked.emit(QgsGeometry.exportToWkt(feat.geometry()))
                         return
-        self.line_clicked.emit(None, None)
+        # emit a small linestring in the x direction
+        layerPoint = self.toMapCoordinates(event.pos())
+        self.line_clicked.emit(LineString([(layerPoint.x()-radius, layerPoint.y()), (layerPoint.x()+radius, layerPoint.y())]).wkt)
 
 class SectionTransform():
     def __init__(self, line):
@@ -59,7 +53,7 @@ class SectionTransform():
         length = self.__length
         line = self.__line
         def fun(x, y, z):
-            return ( line.project(Point(x, y))*length, z, 0)
+            return (line.project(Point(x, y))*length, z, 0)
         return QgsGeometry.fromWkt(transform(fun, geom).wkt)
 
 
@@ -69,7 +63,7 @@ class Plugin():
 
         self.toolbar = QToolBar()
         self.toolbar.addAction('select line').triggered.connect(self.set_section_line)
-        self.buffer_width = QLineEdit("0.5")
+        self.buffer_width = QLineEdit("100")
         self.buffer_width.setMaximumWidth(50)
         self.toolbar.addWidget(QLabel("Width:"))
         self.toolbar.addWidget(self.buffer_width)
@@ -110,14 +104,14 @@ class Plugin():
             self.tool = None
 
     def initGui(self):
-    	pass
+        pass
 
     def unload(self):
+        self.cleanup()
         self.iface.removeDockWidget(self.canvas_dock)
         self.canvas_dock.setParent(None)
         self.toolbar.setParent(None)
         self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
-        self.cleanup()
 
     def cleanup(self):
         if self.highlighter is not None:
@@ -130,30 +124,17 @@ class Plugin():
             QgsMapLayerRegistry.instance().removeMapLayer(l.id())
         self.layers = []
 
-    def set_section_line_(self, layer_id, feature_id):
-        print "SelecteD", layer_id, feature_id
+    def set_section_line_(self, line_wkt):
+        print "SelecteD", line_wkt
         line = None
-        #self.tool.line_clicked.disconnect()
-        #self.tool.setParent(None)
-        #self.tool = None
-        #self.iface.mapCanvas().setMapTool(self.old_tool)
-        #self.oldtool = None
-
-        layer = QgsMapLayerRegistry.instance().mapLayer(layer_id)
-        if layer is None:
-            self.iface.messageBar().pushInfo("note", "no selected line")
-            return
-        for feat in layer.getFeatures(QgsFeatureRequest(feature_id)):
-            line = QgsGeometry(feat.geometry())
         self.cleanup()
+        
+        line = QgsGeometry.fromWkt(line_wkt)
 
         transfo = SectionTransform(line)
 
         width = float(self.buffer_width.text())
-        if line.length > width:
-            buff = line.buffer(width, 4)
-        else: # line is vertical and degenerates to a point, so make the buffer around the first point
-            buff = line.asPolyline()[0].buffer(width, 4)
+        buff = line.buffer(width, 4)
 
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Line)
         self.highlighter.addGeometry(line, None)
@@ -161,8 +142,9 @@ class Plugin():
 
         # select features from layers with Z in geometry
         for layer in self.iface.mapCanvas().layers():
-            if QgsWKBTypes.hasZ(int(layer.wkbType())):
+            if True or QgsWKBTypes.hasZ(int(layer.wkbType())):
                 # 2154 just for the fun, we don't care as long as the unit is meters
+                # @todo find a better SRS and take feet properly into account 
                 new_layer = QgsVectorLayer(
                         "{geomType}?crs=epsg:2154&index=yes".format(
                             geomType={QGis.Point:"Point", QGis.Line:"LineString", QGis.Polygon:"Polygon"}[layer.geometryType()]
@@ -176,30 +158,41 @@ class Plugin():
                 new_layer.beginEditCommand("project")
 
                 features = []
-                for feature in layer.getFeatures():#QgsFeatureRequest(buff.boundingBox())):
+                for feature in layer.getFeatures(QgsFeatureRequest(buff.boundingBox())):
                     # vertical lines and polygons are not valid, so the intersection does not seem to work
                     # we convert them to a multitype of reduced dimension (polygon -> multi line, line -> multi-point
                     inter = QgsGeometry(feature.geometry()) #.intersection(buff)
+                    if not QgsWKBTypes.hasZ(int(inter.wkbType())):
+                        print "no z for", layer.name()
+                        break
                     if inter.type() == QGis.Line:
+                        if layer.name() == 'stratigraphies':
+                            print "line -> multipoint"
                         inter = QgsGeometry.fromMultiPoint(inter.asPolyline())
                     elif inter.type() == QGis.Polygon:
+                        if layer.name() == 'stratigraphies':
+                            print "polygon -> multiline"
                         inter = QgsGeometry.fromMultiLine(inter.asPolygon())
+                    else:
+                        assert False
 
-                    print inter.exportToWkt()
+                    if layer.name() == 'stratigraphies':
+                        print inter.exportToWkt()
+                        print buf.exportToWkt()
                     if inter.intersects(buff):
+                        #print "added"
                         geom =  QgsGeometry(feature.geometry())
-                        print geom.exportToWkt()
                         new_feature = QgsFeature()
                         new_feature.setGeometry(transfo.apply(geom))
                         new_feature.setAttributes(feature.attributes())
+                        print new_feature.geometry().exportToWkt()
                         features.append(new_feature)
                 provider.addFeatures(features)
                 new_layer.endEditCommand()
+                print layer.name(), len(features), new_layer.isValid()
 
                 self.layers.append(new_layer)
-                for fet in features:
-                    print fet.geometry().exportToWkt()
-                QgsMapLayerRegistry.instance().addMapLayer(new_layer, False)
+                QgsMapLayerRegistry.instance().addMapLayer(new_layer, True)
 
         self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers])
         self.canvas.zoomToFullExtent()
