@@ -1,4 +1,4 @@
-# -*- coding: UTF-8 -*-
+# coding=utf-8
 
 from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
 from qgis.gui import *
@@ -7,8 +7,9 @@ from PyQt4.QtCore import Qt, pyqtSignal, QVariant
 from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
 
 from shapely.wkt import loads
-from shapely.ops import transform
 from shapely.geometry import Point, LineString
+
+from section_layer import SectionLayer, hasZ
 
 #@qgsfunction(args="auto", group='Custom')
 #def square_buffer(feature, parent):
@@ -40,22 +41,6 @@ class LineSelectTool(QgsMapTool):
         # emit a small linestring in the x direction
         layerPoint = self.toMapCoordinates(event.pos())
         self.line_clicked.emit(LineString([(layerPoint.x()-radius, layerPoint.y()), (layerPoint.x()+radius, layerPoint.y())]).wkt)
-
-class SectionTransform():
-    def __init__(self, line):
-        "line is a QgsGeometry"
-        self.__line = loads(line.exportToWkt().replace('Z', ''))
-        self.__length = self.__line.length
-
-    def apply(self, geometry):
-        "returns a transformed geometry"
-        geom = loads(geometry.exportToWkt().replace('Z', ''))
-        length = self.__length
-        line = self.__line
-        def fun(x, y, z):
-            return (line.project(Point(x, y))*length, z, 0)
-        return QgsGeometry.fromWkt(transform(fun, geom).wkt)
-
 
 class Plugin():
     def __init__(self, iface):
@@ -131,87 +116,22 @@ class Plugin():
         
         line = QgsGeometry.fromWkt(line_wkt)
 
-        transfo = SectionTransform(line)
-
         width = float(self.buffer_width.text())
-        buff = line.buffer(width, 4)
 
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Line)
         self.highlighter.addGeometry(line, None)
         self.highlighter.setWidth(10)
+        self.highlighter.setColor(Qt.red)
 
         # select features from layers with Z in geometry
         for layer in self.iface.mapCanvas().layers():
-            if True or QgsWKBTypes.hasZ(int(layer.wkbType())):
-                # 2154 just for the fun, we don't care as long as the unit is meters
-                # @todo find a better SRS and take feet properly into account 
-                new_layer = QgsVectorLayer(
-                        "{geomType}?crs=epsg:2154&index=yes".format(
-                            geomType={QGis.Point:"Point", QGis.Line:"LineString", QGis.Polygon:"Polygon"}[layer.geometryType()]
-                            ),
-                        "projected_"+layer.name(),
-                        "memory")
-                provider = new_layer.dataProvider()
-                provider.addAttributes([layer.fields().field(f) for f in range(layer.fields().count())])
-                new_layer.setRendererV2(layer.rendererV2().clone())
-                new_layer.updateFields()
-                new_layer.beginEditCommand("project")
-
-                features = []
-                for feature in layer.getFeatures(QgsFeatureRequest(buff.boundingBox())):
-                    # vertical lines and polygons are not valid, so the intersection does not seem to work
-                    # we convert them to a multitype of reduced dimension (polygon -> multi line, line -> multi-point
-                    inter = QgsGeometry(feature.geometry()) #.intersection(buff)
-                    if not QgsWKBTypes.hasZ(int(inter.wkbType())):
-                        print "no z for", layer.name()
-                        break
-                    if inter.type() == QGis.Line:
-                        if layer.name() == 'stratigraphies':
-                            print "line -> multipoint"
-                        inter = QgsGeometry.fromMultiPoint(inter.asPolyline())
-                    elif inter.type() == QGis.Polygon:
-                        if layer.name() == 'stratigraphies':
-                            print "polygon -> multiline"
-                        inter = QgsGeometry.fromMultiLine(inter.asPolygon())
-                    else:
-                        assert False
-
-                    if layer.name() == 'stratigraphies':
-                        print inter.exportToWkt()
-                        print buf.exportToWkt()
-                    if inter.intersects(buff):
-                        #print "added"
-                        geom =  QgsGeometry(feature.geometry())
-                        new_feature = QgsFeature()
-                        new_feature.setGeometry(transfo.apply(geom))
-                        new_feature.setAttributes(feature.attributes())
-                        print new_feature.geometry().exportToWkt()
-                        features.append(new_feature)
-                provider.addFeatures(features)
-                new_layer.endEditCommand()
-                print layer.name(), len(features), new_layer.isValid()
-
-                self.layers.append(new_layer)
-                QgsMapLayerRegistry.instance().addMapLayer(new_layer, True)
+            if hasZ(layer):
+                section = SectionLayer(line_wkt, width*2, layer)
+                self.layers.append(section)
+                QgsMapLayerRegistry.instance().addMapLayer(section, True)
 
         self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers])
         self.canvas.zoomToFullExtent()
-
-            # debug visu
-            # ___layer = QgsVectorLayer("polygon?crs=epsg:2154&field=id:integer&field=name:string(20)&index=yes",
-            #         "temporary_poly",
-            #         "memory")
-            # ___layer.beginEditCommand("test")
-            # provider = ___layer.dataProvider()
-            # fet = QgsFeature()
-            # fet.setGeometry(buffer)
-            # fet.setAttributes([1, "Johny"])
-            # provider.addFeatures([fet])
-            # ___layer.endEditCommand()
-            # QgsMapLayerRegistry.instance().addMapLayer(___layer, False)
-
-            # self.iface.mapCanvas().setLayerSet([QgsMapCanvasLayer(___layer)])
-            # self.iface.mapCanvas().refreshAllLayers()
 
 
     def set_section_line(self):
