@@ -34,7 +34,7 @@ class LineSelectTool(QgsMapTool):
             rect_geom = QgsGeometry.fromRect(rect)
             if layer.type() == QgsMapLayer.VectorLayer and layer.geometryType() == QGis.Line:
                 for feat in layer.getFeatures(QgsFeatureRequest(rect)):
-                    if feat.geometry().intersects(rect_geom):
+                    if feat.geometry().intersects(rect_geom) and feat.geometry().length() > 0:
                         print "found line in ", layer.name()
                         self.line_clicked.emit(QgsGeometry.exportToWkt(feat.geometry()))
                         return
@@ -57,7 +57,7 @@ class Plugin():
         self.tool = None
         self.old_tool = None
 
-        self.layers = []
+        self.layers = {}
 
         canvas = QgsMapCanvas()
         canvas.setWheelAction(QgsMapCanvas.WheelZoomToMouseCursor)
@@ -72,7 +72,14 @@ class Plugin():
         self.__map_tool_changed(self.iface.mapCanvas().mapTool())
         self.iface.mapCanvas().mapToolSet.connect(self.__map_tool_changed)
 
+        QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layer) 
+
         self.highlighter = None
+
+    def __remove_layer(self, layer_ids):
+        for layer_id in layer_ids:
+            if layer_id in self.layers:
+                del self.layers[layer_id]
 
     def __map_tool_changed(self, map_tool):
         if isinstance(map_tool, QgsMapToolPan):
@@ -92,27 +99,27 @@ class Plugin():
         pass
 
     def unload(self):
-        self.cleanup()
+        self.__cleanup()
         self.iface.removeDockWidget(self.canvas_dock)
         self.canvas_dock.setParent(None)
         self.toolbar.setParent(None)
         self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
 
-    def cleanup(self):
+    def __cleanup(self):
         if self.highlighter is not None:
             self.iface.mapCanvas().scene().removeItem(self.highlighter)
             self.highlighter = None
 
         # remove memory layers
         self.canvas.setLayerSet([])
-        for l in self.layers:
-            QgsMapLayerRegistry.instance().removeMapLayer(l.id())
-        self.layers = []
+        for lid in self.layers.keys():
+            QgsMapLayerRegistry.instance().removeMapLayer(lid)
+        self.layers = {}
 
     def set_section_line_(self, line_wkt):
         print "SelecteD", line_wkt
         line = None
-        self.cleanup()
+        self.__cleanup()
         
         line = QgsGeometry.fromWkt(line_wkt)
 
@@ -127,10 +134,10 @@ class Plugin():
         for layer in self.iface.mapCanvas().layers():
             if hasZ(layer):
                 section = SectionLayer(line_wkt, width*2, layer)
-                self.layers.append(section)
                 QgsMapLayerRegistry.instance().addMapLayer(section, True)
+                self.layers[section.id()] = section
 
-        self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers])
+        self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers.values()])
         self.canvas.zoomToFullExtent()
 
 

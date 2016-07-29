@@ -37,7 +37,8 @@ class SectionLayer(QgsVectorLayer):
                     }[layer.geometryType()]
                 ), "projected_"+layer.name(), "memory")
         self.__source_layer = layer
-        self.__line = loads(wkt_line)
+        print "line", wkt_line
+        self.__line = loads(wkt_line.replace("Z", " Z"))
         self.__length = self.__line.length
         assert self.__length > 0
         self.__thickness = thickness
@@ -72,6 +73,9 @@ class SectionLayer(QgsVectorLayer):
             
         # cpy source layer style
         self.setRendererV2(layer.rendererV2().clone())
+        
+        #self.setLabeling(layer.labeling()) not available in python
+
 
     def __project(self, qgs_geometry):
         """returns a transformed geometry"""
