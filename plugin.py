@@ -39,6 +39,7 @@ class Plugin():
         self.__map_tool_changed(self.iface.mapCanvas().mapTool())
         self.iface.mapCanvas().mapToolSet.connect(self.__map_tool_changed)
 
+        # project layer synchro 
         QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layers) 
         QgsMapLayerRegistry.instance().layersAdded.connect(self.__add_layers) 
 

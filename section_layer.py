@@ -43,6 +43,7 @@ class SectionLayer(QgsVectorLayer):
         assert self.__length > 0
         self.__thickness = thickness
 
+        self.setCustomProperty("source_layer", layer.id())
 
 
         # fetch data that are within thickness/2 of the line
@@ -87,10 +88,4 @@ class SectionLayer(QgsVectorLayer):
             return (line.project(Point(x, y))*length, z, 0)
         return QgsGeometry.fromWkt(transform(fun, geom).wkt)
     
-    def writeXml(self, layer_node, doc):
-        ret = QgsVectorLayer.writeXml(self, layer_node, doc)
-        layer_node.toElement().setAttribute("source_layer", self.__source_layer.id())
-        return ret
-
-
 
