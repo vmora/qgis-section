@@ -62,10 +62,10 @@ class Plugin():
         canvas = QgsMapCanvas()
         canvas.setWheelAction(QgsMapCanvas.WheelZoomToMouseCursor)
 
-        self.canvas_dock = QDockWidget('Qgis section other')
+        self.canvas_dock = QDockWidget('Section View')
         self.canvas = canvas
         self.canvas_dock.setWidget(self.canvas)
-        self.iface.addDockWidget(Qt.RightDockWidgetArea, self.canvas_dock)
+        self.iface.addDockWidget(Qt.BottomDockWidgetArea, self.canvas_dock)
 
         # tool synchro
         self.tool = None
@@ -75,6 +75,15 @@ class Plugin():
         QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layer) 
 
         self.highlighter = None
+
+        self.layertreeroot = QgsLayerTreeGroup()
+        self.layertreeview = QgsLayerTreeView()
+        self.layertreemodel = QgsLayerTreeModel(self.layertreeroot)
+        self.layertreeview.setModel(self.layertreemodel)
+        self.layertreeview_dock = QDockWidget('Section Layers')
+        self.layertreeview_dock.setWidget(self.layertreeview)
+        self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.layertreeview_dock)
+
 
     def __remove_layer(self, layer_ids):
         for layer_id in layer_ids:
@@ -109,6 +118,8 @@ class Plugin():
         if self.highlighter is not None:
             self.iface.mapCanvas().scene().removeItem(self.highlighter)
             self.highlighter = None
+        
+        self.layertreeroot.removeAllChildren()
 
         # remove memory layers
         self.canvas.setLayerSet([])
@@ -134,8 +145,9 @@ class Plugin():
         for layer in self.iface.mapCanvas().layers():
             if hasZ(layer):
                 section = SectionLayer(line_wkt, width*2, layer)
-                QgsMapLayerRegistry.instance().addMapLayer(section, True)
+                QgsMapLayerRegistry.instance().addMapLayer(section, False)
                 self.layers[section.id()] = section
+                self.layertreeroot.addLayer(section)
 
         self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers.values()])
         self.canvas.zoomToFullExtent()
