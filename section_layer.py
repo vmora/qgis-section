@@ -16,74 +16,44 @@ def hasZ(layer):
         return QgsWKBTypes.hasZ(int(feat.geometry().wkbType()))
     return False
 
-class SectionLayer(QgsVectorLayer):
-    """Project layer data on the sz plane where s is the curvilinear coordinate
-    on the linestring given to the constructor.
+class LayerProjection(object):
+    def __init__(self, source_layer, projected_layer):
+        self.__source_layer = source_layer
+        self.projected_layer = projected_layer
+        assert hasZ(source_layer) # @todo remove this and configure attribute for z
 
-    The QgsVectorLayer is a memory layer"""
+    def apply(self, wkt_line, width):
+        "project source features on section plnae defined by line"
+        print "projecting ", self.__source_layer.name()
 
-    def __init__(self, wkt_line, thickness, layer):
-        """the line and layer must share the same coordinate system"""
-        print "SectionLayer.__init__"
-        assert hasZ(layer)
-        # 2154 just for the fun, we don't care as long as the unit is meters
-        # @todo find a better SRS and take feet properly into account
-        QgsVectorLayer.__init__(self,
-            "{geomType}?crs=epsg:2154&index=yes".format(
-                geomType={
-                    QGis.Point:"Point",
-                    QGis.Line:"LineString",
-                    QGis.Polygon:"Polygon"
-                    }[layer.geometryType()]
-                ), "projected_"+layer.name(), "memory")
-        self.__source_layer = layer
-        print "line", wkt_line
-        self.__line = loads(wkt_line.replace("Z", " Z"))
-        self.__length = self.__line.length
-        assert self.__length > 0
-        self.__thickness = thickness
+        def project(line, qgs_geometry):
+            """returns a transformed geometry"""
+            #@todo use wkb to optimize ?
+            geom = loads(qgs_geometry.exportToWkt().replace('Z', ' Z'))
+            return QgsGeometry.fromWkt(
+                    transform(
+                        lambda x,y,z: (line.project(Point(x, y)), z, 0), 
+                        geom).wkt)
 
-        self.setCustomProperty("source_layer", layer.id())
-
-
-        # fetch data that are within thickness/2 of the line
-        # since data can be invalid in the xy plane (e.g. a line in the z direction
-        # has no length, a plygon has no surface...) the fetch does not
-        # use QgsFeatureRequest
+        source = self.__source_layer
+        line = loads(wkt_line.replace("Z", " Z"))
         features = []
         # square cap style for the buffer -> less points
-        buf = self.__line.buffer(thickness/2, cap_style=2)
-        for feature in layer.getFeatures():
+        buf = line.buffer(width, cap_style=2)
+        for feature in source.getFeatures():
             centroid = feature.geometry().boundingBox().center()
             if Point(centroid.x(), centroid.y()).intersects(buf):
-                print "here"
                 geom = feature.geometry()
                 new_feature = QgsFeature()
-                new_feature.setGeometry(self.__project(geom))
+                new_feature.setGeometry(project(line, geom))
                 new_feature.setAttributes(feature.attributes())
                 features.append(new_feature)
 
-        provider = self.dataProvider()
-        # cpy attributes structure
-        provider.addAttributes([layer.fields().field(f) for f in range(layer.fields().count())])
-        self.updateFields()
-        # put computed feaures in there
-        self.beginEditCommand("project")
-        provider.addFeatures(features)
-        self.endEditCommand()
+        projected = self.projected_layer
+        projected.beginEditCommand('layer projection')
+        projected.selectAll()
+        projected.deleteSelectedFeatures()
+        projected.dataProvider().addFeatures(features)
+        projected.endEditCommand()
 
-        # cpy source layer style
-        self.setRendererV2(layer.rendererV2().clone())
-
-        #self.setLabeling(layer.labeling()) not available in python
-
-
-    def __project(self, qgs_geometry):
-        """returns a transformed geometry"""
-        #@todo use wkb to optimize ?
-        geom = loads(qgs_geometry.exportToWkt().replace('Z', ''))
-        line = self.__line
-        def fun(x, y, z):
-            return (line.project(Point(x, y)), z, 0)
-        return QgsGeometry.fromWkt(transform(fun, geom).wkt)
 

@@ -4,9 +4,10 @@ from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
 from qgis.gui import *
 
 from PyQt4.QtCore import pyqtSignal
-from PyQt4.QtGui import QToolBar, QLineEdit, QLabel
+from PyQt4.QtGui import QToolBar, QLineEdit, QLabel, QIcon
 
 from shapely.geometry import LineString
+import os
 
 class LineSelectTool(QgsMapTool):
     line_clicked = pyqtSignal(str)
@@ -38,7 +39,11 @@ class SectionToolbar(QToolBar):
     def __init__(self, canvas):
         QToolBar.__init__(self)
         self.__canvas = canvas
-        self.addAction('select line').triggered.connect(self.__set_section_line)
+
+        icon = lambda name: QIcon(os.path.join(os.path.dirname(__file__), name))
+
+        self.addAction(icon('add_layer.svg'), 'add projected layer').triggered.connect(self.__add_layer)
+        self.addAction(icon('select_line.svg'), 'select line').triggered.connect(self.__set_section_line)
 
         self.buffer_width = QLineEdit("100")
         self.buffer_width.setMaximumWidth(50)
@@ -53,3 +58,26 @@ class SectionToolbar(QToolBar):
         self.__tool = LineSelectTool(self.__canvas)
         self.__tool.line_clicked.connect(lambda wkt_: self.line_clicked.emit(wkt_, float(self.buffer_width.text())))
         self.__canvas.setMapTool(self.__tool)
+
+    def __add_layer(self):
+        layer = self.__canvas.currentLayer()
+        print "add layer"
+        section = QgsVectorLayer(
+            "{geomType}?crs=epsg:2154&index=yes".format(
+                geomType={
+                    QGis.Point:"Point",
+                    QGis.Line:"LineString",
+                    QGis.Polygon:"Polygon"
+                    }[layer.geometryType()]
+                ), layer.name(), "memory")
+        section.setCustomProperty("projected_layer", layer.id())
+
+        # cpy attributes structure
+        section.dataProvider().addAttributes([layer.fields().field(f) for f in range(layer.fields().count())])
+        section.updateFields()
+
+        # cpy style
+        section.setRendererV2(layer.rendererV2().clone())
+
+        QgsMapLayerRegistry.instance().addMapLayer(section, False)
+        

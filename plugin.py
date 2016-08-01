@@ -4,9 +4,9 @@ from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
 from qgis.gui import *
 
 from PyQt4.QtCore import Qt
-from PyQt4.QtGui import QDockWidget
+from PyQt4.QtGui import QDockWidget, QMenu
 
-from section_layer import SectionLayer, hasZ
+from section_layer import LayerProjection
 from toolbar import SectionToolbar, LineSelectTool
 
 #@qgsfunction(args="auto", group='Custom')
@@ -15,6 +15,15 @@ from toolbar import SectionToolbar, LineSelectTool
 #    wkt = geom.exportToWkt().replace('LineStringZ', 'LINESTRING')
 #    print wkt
 #    return QgsGeometry.fromWkt(geom_from_wkt(wkt).buffer(30., cap_style=2).wkt)
+class ContextMenu(QgsLayerTreeViewMenuProvider):
+    def __init__(self, plugin):
+        QgsLayerTreeViewMenuProvider.__init__(self)
+        self.__plugin = plugin
+
+    def createContextMenu(self):
+        menu = QMenu()
+        menu.addAction('remove').triggered.connect(self.__plugin.remove_current_layer)
+        return menu
 
 class Plugin():
     def __init__(self, iface):
@@ -53,24 +62,44 @@ class Plugin():
         self.layertreeview_dock.setWidget(self.layertreeview)
         self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.layertreeview_dock)
         self.layertreeview.doubleClicked.connect(self.__open_layer_props)
+        self.layertreeview.setMenuProvider(ContextMenu(self))
 
         self.bridge = QgsLayerTreeMapCanvasBridge(self.layertreeroot, self.canvas)
         self.layertreeview.currentLayerChanged.connect(self.canvas.setCurrentLayer)
         self.layertreemodel.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility, True)
         self.layertreemodel.setFlag(QgsLayerTreeModel.AllowLegendChangeState, True)
 
+        # in case we are reloading
+        self.__add_layers(QgsMapLayerRegistry.instance().mapLayers().values())
+
     def __open_layer_props(self):
         print "currentLayer", self.canvas.currentLayer(), self.layertreeview.currentNode()
         self.iface.showLayerProperties(self.canvas.currentLayer())
 
+    def remove_current_layer(self):
+        layer = self.canvas.currentLayer()
+        if layer is not None:
+            QgsMapLayerRegistry.instance().removeMapLayer(layer.id())
+
     def __remove_layers(self, layer_ids):
         for layer_id in layer_ids:
             if layer_id in self.layers:
+                self.layertreeroot.removeLayer(self.layers[layer_id].projected_layer)
                 del self.layers[layer_id]
+                print "__remove_layers", layer_id
 
     def __add_layers(self, layers):
         for layer in layers:
-            print "__add_layers", layer.name()
+            print "adding layer", layer.name()
+            if layer.customProperty("projected_layer") is not None:
+                source_layer = QgsMapLayerRegistry.instance().mapLayer(
+                        layer.customProperty("projected_layer"))
+                if source_layer is not None:
+                    projection = LayerProjection(source_layer, layer)
+                    self.toolbar.line_clicked.connect(projection.apply)
+                    self.layers[layer.id()] = projection
+                    self.layertreeroot.addLayer(layer)
+                    print "__add_layers", layer.name()
 
     def __map_tool_changed(self, map_tool):
         if isinstance(map_tool, QgsMapToolPan):
@@ -106,36 +135,18 @@ class Plugin():
             self.iface.mapCanvas().scene().removeItem(self.highlighter)
             self.highlighter = None
         
-        self.layertreeroot.removeAllChildren()
-
-        # remove memory layers
-        self.canvas.setLayerSet([])
-        for lid in self.layers.keys():
-            QgsMapLayerRegistry.instance().removeMapLayer(lid)
-        self.layers = {}
-
     def __set_section_line(self, line_wkt, width):
         print "SelecteD", line_wkt
         line = None
         self.__cleanup()
         
         line = QgsGeometry.fromWkt(line_wkt)
-
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Line)
         self.highlighter.addGeometry(line, None)
-        self.highlighter.setWidth(10)
+        self.highlighter.setWidth(width/self.iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
         self.highlighter.setColor(Qt.red)
-
-        # select features from layers with Z in geometry
-        for layer in self.iface.mapCanvas().layers():
-            if hasZ(layer):
-                section = SectionLayer(line_wkt, width*2, layer)
-                QgsMapLayerRegistry.instance().addMapLayer(section, False)
-                self.layers[section.id()] = section
-                self.layertreeroot.addLayer(section)
-
-        #self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers.values()])
-        self.canvas.zoomToFullExtent()
+        #self.canvas.zoomToFullExtent()
+        self.canvas.setExtent(QgsRectangle(0,-300, line.length(), 300))
 
 
 
