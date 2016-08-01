@@ -9,7 +9,7 @@ from shapely.ops import transform
 def hasZ(layer):
     """test if layer has z, necessary because the wkbType returned by lyers in QGSI 2.16
     has lost the information
-    
+
     note: we return False for a layer with no geometries
     """
     for feat in layer.getFeatures():
@@ -19,7 +19,7 @@ def hasZ(layer):
 class SectionLayer(QgsVectorLayer):
     """Project layer data on the sz plane where s is the curvilinear coordinate
     on the linestring given to the constructor.
-    
+
     The QgsVectorLayer is a memory layer"""
 
     def __init__(self, wkt_line, thickness, layer):
@@ -27,12 +27,12 @@ class SectionLayer(QgsVectorLayer):
         print "SectionLayer.__init__"
         assert hasZ(layer)
         # 2154 just for the fun, we don't care as long as the unit is meters
-        # @todo find a better SRS and take feet properly into account 
+        # @todo find a better SRS and take feet properly into account
         QgsVectorLayer.__init__(self,
             "{geomType}?crs=epsg:2154&index=yes".format(
                 geomType={
-                    QGis.Point:"Point", 
-                    QGis.Line:"LineString", 
+                    QGis.Point:"Point",
+                    QGis.Line:"LineString",
                     QGis.Polygon:"Polygon"
                     }[layer.geometryType()]
                 ), "projected_"+layer.name(), "memory")
@@ -61,7 +61,7 @@ class SectionLayer(QgsVectorLayer):
                 new_feature.setGeometry(self.__project(geom))
                 new_feature.setAttributes(feature.attributes())
                 features.append(new_feature)
-                
+
         provider = self.dataProvider()
         # cpy attributes structure
         provider.addAttributes([layer.fields().field(f) for f in range(layer.fields().count())])
@@ -70,10 +70,10 @@ class SectionLayer(QgsVectorLayer):
         self.beginEditCommand("project")
         provider.addFeatures(features)
         self.endEditCommand()
-            
+
         # cpy source layer style
         self.setRendererV2(layer.rendererV2().clone())
-        
+
         #self.setLabeling(layer.labeling()) not available in python
 
 
@@ -81,12 +81,11 @@ class SectionLayer(QgsVectorLayer):
         """returns a transformed geometry"""
         #@todo use wkb to optimize ?
         geom = loads(qgs_geometry.exportToWkt().replace('Z', ''))
-        length = self.__length
         line = self.__line
         def fun(x, y, z):
-            return (line.project(Point(x, y))*length, z, 0)
+            return (line.project(Point(x, y)), z, 0)
         return QgsGeometry.fromWkt(transform(fun, geom).wkt)
-    
+
     def writeXml(self, layer_node, doc):
         ret = QgsVectorLayer.writeXml(self, layer_node, doc)
         layer_node.toElement().setAttribute("source_layer", self.__source_layer.id())
