@@ -3,13 +3,11 @@
 from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
 from qgis.gui import *
 
-from PyQt4.QtCore import Qt, pyqtSignal, QVariant
-from PyQt4.QtGui import QDockWidget, QToolBar, QLineEdit, QLabel
-
-from shapely.wkt import loads
-from shapely.geometry import Point, LineString
+from PyQt4.QtCore import Qt
+from PyQt4.QtGui import QDockWidget
 
 from section_layer import SectionLayer, hasZ
+from toolbar import SectionToolbar, LineSelectTool
 
 #@qgsfunction(args="auto", group='Custom')
 #def square_buffer(feature, parent):
@@ -18,44 +16,13 @@ from section_layer import SectionLayer, hasZ
 #    print wkt
 #    return QgsGeometry.fromWkt(geom_from_wkt(wkt).buffer(30., cap_style=2).wkt)
 
-class LineSelectTool(QgsMapTool):
-    line_clicked = pyqtSignal(str)
-    def __init__(self, canvas):
-        QgsMapTool.__init__(self, canvas)
-        self.canvas = canvas
-
-    def canvasReleaseEvent(self, event):
-        print "canvasReleaseEvent"
-        #Get the click
-        radius = QgsMapTool.searchRadiusMU(self.canvas)
-        for layer in self.canvas.layers():
-            layerPoint = self.toLayerCoordinates(layer, event.pos())
-            rect = QgsRectangle(layerPoint.x() - radius, layerPoint.y() - radius, layerPoint.x() + radius, layerPoint.y() + radius)
-            rect_geom = QgsGeometry.fromRect(rect)
-            if layer.type() == QgsMapLayer.VectorLayer and layer.geometryType() == QGis.Line:
-                for feat in layer.getFeatures(QgsFeatureRequest(rect)):
-                    if feat.geometry().intersects(rect_geom) and feat.geometry().length() > 0:
-                        print "found line in ", layer.name()
-                        self.line_clicked.emit(QgsGeometry.exportToWkt(feat.geometry()))
-                        return
-        # emit a small linestring in the x direction
-        layerPoint = self.toMapCoordinates(event.pos())
-        self.line_clicked.emit(LineString([(layerPoint.x()-radius, layerPoint.y()), (layerPoint.x()+radius, layerPoint.y())]).wkt)
-
 class Plugin():
     def __init__(self, iface):
         self.iface = iface
 
-        self.toolbar = QToolBar()
-        self.toolbar.addAction('select line').triggered.connect(self.set_section_line)
-        self.buffer_width = QLineEdit("100")
-        self.buffer_width.setMaximumWidth(50)
-        self.toolbar.addWidget(QLabel("Width:"))
-        self.toolbar.addWidget(self.buffer_width)
+        self.toolbar = SectionToolbar(iface.mapCanvas())
         self.iface.addToolBar(self.toolbar)
-
-        self.tool = None
-        self.old_tool = None
+        self.toolbar.line_clicked.connect(self.__set_section_line)
 
         self.layers = {}
 
@@ -72,7 +39,8 @@ class Plugin():
         self.__map_tool_changed(self.iface.mapCanvas().mapTool())
         self.iface.mapCanvas().mapToolSet.connect(self.__map_tool_changed)
 
-        QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layer) 
+        QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layers) 
+        QgsMapLayerRegistry.instance().layersAdded.connect(self.__add_layers) 
 
         self.highlighter = None
 
@@ -94,10 +62,14 @@ class Plugin():
         print "currentLayer", self.canvas.currentLayer(), self.layertreeview.currentNode()
         self.iface.showLayerProperties(self.canvas.currentLayer())
 
-    def __remove_layer(self, layer_ids):
+    def __remove_layers(self, layer_ids):
         for layer_id in layer_ids:
             if layer_id in self.layers:
                 del self.layers[layer_id]
+
+    def __add_layers(self, layers):
+        for layer in layers:
+            print "__add_layers", layer.name()
 
     def __map_tool_changed(self, map_tool):
         if isinstance(map_tool, QgsMapToolPan):
@@ -125,6 +97,9 @@ class Plugin():
         self.toolbar.setParent(None)
         self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
 
+        QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers) 
+        QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers) 
+
     def __cleanup(self):
         if self.highlighter is not None:
             self.iface.mapCanvas().scene().removeItem(self.highlighter)
@@ -138,14 +113,12 @@ class Plugin():
             QgsMapLayerRegistry.instance().removeMapLayer(lid)
         self.layers = {}
 
-    def set_section_line_(self, line_wkt):
+    def __set_section_line(self, line_wkt, width):
         print "SelecteD", line_wkt
         line = None
         self.__cleanup()
         
         line = QgsGeometry.fromWkt(line_wkt)
-
-        width = float(self.buffer_width.text())
 
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Line)
         self.highlighter.addGeometry(line, None)
@@ -164,10 +137,4 @@ class Plugin():
         self.canvas.zoomToFullExtent()
 
 
-    def set_section_line(self):
-        print "set_section_line"
-        self.old_tool = self.iface.mapCanvas().mapTool()
-        self.tool = LineSelectTool(self.iface.mapCanvas())
-        self.tool.line_clicked.connect(self.set_section_line_)
-        self.iface.mapCanvas().setMapTool(self.tool)
 
