@@ -83,7 +83,14 @@ class Plugin():
         self.layertreeview_dock = QDockWidget('Section Layers')
         self.layertreeview_dock.setWidget(self.layertreeview)
         self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.layertreeview_dock)
+        self.layertreeview.doubleClicked.connect(self.__open_layer_props)
 
+        self.bridge = QgsLayerTreeMapCanvasBridge(self.layertreeroot, self.canvas)
+        self.layertreeview.currentLayerChanged.connect(self.canvas.setCurrentLayer)
+
+    def __open_layer_props(self):
+        print "currentLayer", self.canvas.currentLayer(), self.layertreeview.currentNode()
+        self.iface.showLayerProperties(self.canvas.currentLayer())
 
     def __remove_layer(self, layer_ids):
         for layer_id in layer_ids:
@@ -110,7 +117,9 @@ class Plugin():
     def unload(self):
         self.__cleanup()
         self.iface.removeDockWidget(self.canvas_dock)
+        self.iface.removeDockWidget(self.layertreeview_dock)
         self.canvas_dock.setParent(None)
+        self.layertreeview_dock.setParent(None)
         self.toolbar.setParent(None)
         self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
 
@@ -149,7 +158,7 @@ class Plugin():
                 self.layers[section.id()] = section
                 self.layertreeroot.addLayer(section)
 
-        self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers.values()])
+        #self.canvas.setLayerSet([QgsMapCanvasLayer(layer) for layer in self.layers.values()])
         self.canvas.zoomToFullExtent()
 
 
