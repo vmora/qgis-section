@@ -87,6 +87,8 @@ class Plugin():
 
         self.bridge = QgsLayerTreeMapCanvasBridge(self.layertreeroot, self.canvas)
         self.layertreeview.currentLayerChanged.connect(self.canvas.setCurrentLayer)
+        self.layertreemodel.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility, True)
+        self.layertreemodel.setFlag(QgsLayerTreeModel.AllowLegendChangeState, True)
 
     def __open_layer_props(self):
         print "currentLayer", self.canvas.currentLayer(), self.layertreeview.currentNode()
