@@ -71,6 +71,8 @@ class Plugin():
         self.layertreeview.currentLayerChanged.connect(self.canvas.setCurrentLayer)
         self.layertreemodel.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility, True)
         self.layertreemodel.setFlag(QgsLayerTreeModel.AllowLegendChangeState, True)
+        self.layertreemodel.setFlag(QgsLayerTreeModel.AllowNodeReorder, True)
+        self.layertreemodel.setFlag(QgsLayerTreeModel.AllowNodeRename, True)
 
         # in case we are reloading
         self.__add_layers(QgsMapLayerRegistry.instance().mapLayers().values())

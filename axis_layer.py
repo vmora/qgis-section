@@ -29,9 +29,11 @@ class AxisLayer(QgsPluginLayer):
 
     def __init__(self):
         QgsPluginLayer.__init__(self, AxisLayer.LAYER_TYPE, "axis plugin layer")
-        self.setValid(True)
         self.__msg.connect(self.__print)
         self.__drawException.connect(self.__raise)
+
+        self.setCrs(QgsCoordinateReferenceSystem('EPSG:2154'))
+        self.setValid(True)
 
     def __print(self, msg):
         print msg
