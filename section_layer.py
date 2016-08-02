@@ -50,9 +50,8 @@ class LayerProjection(object):
                 features.append(new_feature)
 
         projected = self.projected_layer
+        projected.dataProvider().deleteFeatures(projected.allFeatureIds())
         projected.beginEditCommand('layer projection')
-        projected.selectAll()
-        projected.deleteSelectedFeatures()
         projected.dataProvider().addFeatures(features)
         projected.endEditCommand()
 
