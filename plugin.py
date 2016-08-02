@@ -6,8 +6,9 @@ from qgis.gui import *
 from PyQt4.QtCore import Qt
 from PyQt4.QtGui import QDockWidget, QMenu
 
-from section_layer import LayerProjection
-from toolbar import SectionToolbar, LineSelectTool
+from .section_layer import LayerProjection
+from .toolbar import SectionToolbar, LineSelectTool
+from .axis_layer import AxisLayer, AxisLayerType
 
 #@qgsfunction(args="auto", group='Custom')
 #def square_buffer(feature, parent):
@@ -34,6 +35,7 @@ class Plugin():
         self.toolbar.line_clicked.connect(self.__set_section_line)
 
         self.layers = {}
+        self.axis_layer = None
 
         canvas = QgsMapCanvas()
         canvas.setWheelAction(QgsMapCanvas.WheelZoomToMouseCursor)
@@ -72,6 +74,9 @@ class Plugin():
         # in case we are reloading
         self.__add_layers(QgsMapLayerRegistry.instance().mapLayers().values())
 
+        self.axis_layer_type = AxisLayerType()
+        QgsPluginLayerRegistry.instance().addPluginLayerType(self.axis_layer_type)
+
     def __open_layer_props(self):
         print "currentLayer", self.canvas.currentLayer(), self.layertreeview.currentNode()
         self.iface.showLayerProperties(self.canvas.currentLayer())
@@ -87,6 +92,9 @@ class Plugin():
                 self.layertreeroot.removeLayer(self.layers[layer_id].projected_layer)
                 del self.layers[layer_id]
                 print "__remove_layers", layer_id
+            if self.axis_layer is not None and layer_id == self.axis_layer.id():
+                self.layertreeroot.removeLayer(self.axis_layer)
+                self.axis_layer = None
 
     def __add_layers(self, layers):
         for layer in layers:
@@ -100,6 +108,10 @@ class Plugin():
                     self.layers[layer.id()] = projection
                     self.layertreeroot.addLayer(layer)
                     print "__add_layers", layer.name()
+            if isinstance(layer, AxisLayer):
+                self.layertreeroot.addLayer(layer)
+                self.axis_layer = layer
+
 
     def __map_tool_changed(self, map_tool):
         if isinstance(map_tool, QgsMapToolPan):
@@ -129,6 +141,8 @@ class Plugin():
 
         QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers) 
         QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers) 
+
+        QgsPluginLayerRegistry.instance().removePluginLayerType(AxisLayer.LAYER_TYPE)
 
     def __cleanup(self):
         if self.highlighter is not None:

@@ -9,6 +9,8 @@ from PyQt4.QtGui import QToolBar, QLineEdit, QLabel, QIcon
 from shapely.geometry import LineString
 import os
 
+from .axis_layer import AxisLayer
+
 class LineSelectTool(QgsMapTool):
     line_clicked = pyqtSignal(str)
     def __init__(self, canvas):
@@ -41,6 +43,8 @@ class SectionToolbar(QToolBar):
         self.__canvas = canvas
 
         icon = lambda name: QIcon(os.path.join(os.path.dirname(__file__), name))
+
+        self.addAction('axis').triggered.connect(self.__add_axis)
 
         self.addAction(icon('add_layer.svg'), 'add projected layer').triggered.connect(self.__add_layer)
         self.addAction(icon('select_line.svg'), 'select line').triggered.connect(self.__set_section_line)
@@ -80,4 +84,8 @@ class SectionToolbar(QToolBar):
         section.setRendererV2(layer.rendererV2().clone())
 
         QgsMapLayerRegistry.instance().addMapLayer(section, False)
+        
+    def __add_axis(self):
+        self.axislayer = AxisLayer()
+        QgsMapLayerRegistry.instance().addMapLayer(self.axislayer, False)
         
