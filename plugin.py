@@ -39,6 +39,7 @@ class Plugin():
 
         canvas = QgsMapCanvas()
         canvas.setWheelAction(QgsMapCanvas.WheelZoomToMouseCursor)
+        canvas.setCrsTransformEnabled(False)
 
         self.canvas_dock = QDockWidget('Section View')
         self.canvas = canvas
