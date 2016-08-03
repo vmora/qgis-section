@@ -54,5 +54,6 @@ class LayerProjection(object):
         projected.beginEditCommand('layer projection')
         projected.dataProvider().addFeatures(features)
         projected.endEditCommand()
+        projected.updateExtents()
 
 

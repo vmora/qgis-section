@@ -80,6 +80,10 @@ class Plugin():
         self.axis_layer_type = AxisLayerType()
         QgsPluginLayerRegistry.instance().addPluginLayerType(self.axis_layer_type)
 
+        #self.iface.actionZoomFullExtent().triggered.connect(self.canvas.zoomToFullExtent)
+        #self.iface.actionZoomToLayer().triggered.connect(lambda x: 
+        #        self.canvas.setExtent(self.canvas.currentLayer().extent()))
+
     def __open_layer_props(self):
         print "currentLayer", self.canvas.currentLayer(), self.layertreeview.currentNode()
         self.iface.showLayerProperties(self.canvas.currentLayer())
@@ -107,7 +111,9 @@ class Plugin():
                         layer.customProperty("projected_layer"))
                 if source_layer is not None:
                     projection = LayerProjection(source_layer, layer)
+                    self.toolbar.line_clicked.disconnect(self.__set_section_line)
                     self.toolbar.line_clicked.connect(projection.apply)
+                    self.toolbar.line_clicked.connect(self.__set_section_line)
                     self.layers[layer.id()] = projection
                     self.layertreeroot.addLayer(layer)
                     print "__add_layers", layer.name()
@@ -150,6 +156,7 @@ class Plugin():
     def __cleanup(self):
         if self.highlighter is not None:
             self.iface.mapCanvas().scene().removeItem(self.highlighter)
+            self.iface.mapCanvas().refresh()
             self.highlighter = None
         
     def __set_section_line(self, line_wkt, width):
@@ -163,7 +170,10 @@ class Plugin():
         self.highlighter.setWidth(width/self.iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
         self.highlighter.setColor(Qt.red)
         #self.canvas.zoomToFullExtent()
-        self.canvas.setExtent(QgsRectangle(0,-300, line.length(), 300))
+        min_z = min((layer.extent().yMinimum() for layer in self.canvas.layers()))
+        max_z = max((layer.extent().yMaximum() for layer in self.canvas.layers()))
+        self.canvas.setExtent(QgsRectangle(0, min_z, line.length(), max_z))
+        self.canvas.refresh()
 
 
 

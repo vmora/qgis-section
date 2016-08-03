@@ -35,6 +35,9 @@ class AxisLayer(QgsPluginLayer):
         self.setCrs(QgsCoordinateReferenceSystem('EPSG:2154'))
         self.setValid(True)
 
+    def extent(self):
+        return QgsRectangle(-1,-1, 1, 1)
+
     def __print(self, msg):
         print msg
 
