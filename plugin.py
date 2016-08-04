@@ -88,6 +88,16 @@ class Plugin():
         #self.iface.actionZoomFullExtent().triggered.connect(self.canvas.zoomToFullExtent)
         #self.iface.actionZoomToLayer().triggered.connect(lambda x: 
         #        self.canvas.setExtent(self.canvas.currentLayer().extent()))
+        self.iface.actionToggleEditing().triggered.connect(self.__toggle_edit)
+
+    def __toggle_edit(self):
+        print "__toggle_edit"
+        if self.canvas.currentLayer() is None:
+            return
+        if self.canvas.currentLayer().isEditable():
+            self.canvas.currentLayer().rollBack()
+        else:
+            self.canvas.currentLayer().startEditing()
 
     def __open_layer_props(self):
         print "currentLayer", self.canvas.currentLayer(), self.layertreeview.currentNode()
@@ -135,9 +145,9 @@ class Plugin():
             self.tool = QgsMapToolZoom(self.canvas, map_tool.action().text().find(u"+") == -1)
             self.canvas.setMapTool(self.tool)
         elif isinstance(map_tool, LineSelectTool):
+            print 'line select tool'
             pass
         else:
-            print 'map_tool', map_tool
             self.canvas.setMapTool(None)
             self.tool = None
 
