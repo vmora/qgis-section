@@ -176,11 +176,13 @@ class Plugin():
         color = QColor(255, 0, 0, 128)
         self.highlighter.setColor(color)
         #self.canvas.zoomToFullExtent()
+        if not len(self.canvas.layers()):
+            return
         min_z = min((layer.extent().yMinimum() for layer in self.canvas.layers()))
         max_z = max((layer.extent().yMaximum() for layer in self.canvas.layers()))
-        self.canvas.setExtent(QgsRectangle(0, min_z, line.length(), max_z))
+        print "z-range", min_z, max_z
+        self.canvas.setExtent(QgsRectangle(0, min_z, self.line.length(), max_z))
         self.canvas.refresh()
-        self.canvas.setExtent(QgsRectangle(0,-300, self.line.length(), 300))
 
     def extents_changed(self):
         if self.line is None:
