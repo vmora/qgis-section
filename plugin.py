@@ -4,11 +4,13 @@ from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
 from qgis.gui import *
 
 from PyQt4.QtCore import Qt
-from PyQt4.QtGui import QDockWidget, QMenu
+from PyQt4.QtGui import QDockWidget, QMenu, QColor
 
 from .section_layer import LayerProjection
 from .toolbar import SectionToolbar, LineSelectTool
 from .axis_layer import AxisLayer, AxisLayerType
+
+from math import sqrt
 
 #@qgsfunction(args="auto", group='Custom')
 #def square_buffer(feature, parent):
@@ -30,6 +32,8 @@ class Plugin():
     def __init__(self, iface):
         self.iface = iface
 
+        self.line = None
+
         self.toolbar = SectionToolbar(iface.mapCanvas())
         self.iface.addToolBar(self.toolbar)
         self.toolbar.line_clicked.connect(self.__set_section_line)
@@ -45,15 +49,16 @@ class Plugin():
         self.canvas = canvas
         self.canvas_dock.setWidget(self.canvas)
         self.iface.addDockWidget(Qt.BottomDockWidgetArea, self.canvas_dock)
+        self.canvas.extentsChanged.connect(self.extents_changed)
 
         # tool synchro
         self.tool = None
         self.__map_tool_changed(self.iface.mapCanvas().mapTool())
         self.iface.mapCanvas().mapToolSet.connect(self.__map_tool_changed)
 
-        # project layer synchro 
-        QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layers) 
-        QgsMapLayerRegistry.instance().layersAdded.connect(self.__add_layers) 
+        # project layer synchro
+        QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layers)
+        QgsMapLayerRegistry.instance().layersAdded.connect(self.__add_layers)
 
         self.highlighter = None
 
@@ -148,8 +153,8 @@ class Plugin():
         self.toolbar.setParent(None)
         self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
 
-        QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers) 
-        QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers) 
+        QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers)
+        QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers)
 
         QgsPluginLayerRegistry.instance().removePluginLayerType(AxisLayer.LAYER_TYPE)
 
@@ -158,22 +163,56 @@ class Plugin():
             self.iface.mapCanvas().scene().removeItem(self.highlighter)
             self.iface.mapCanvas().refresh()
             self.highlighter = None
-        
+
     def __set_section_line(self, line_wkt, width):
         print "SelecteD", line_wkt
         line = None
         self.__cleanup()
-        
-        line = QgsGeometry.fromWkt(line_wkt)
+
+        self.line = QgsGeometry.fromWkt(line_wkt)
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Line)
-        self.highlighter.addGeometry(line, None)
+        self.highlighter.addGeometry(self.line, None)
         self.highlighter.setWidth(width/self.iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
-        self.highlighter.setColor(Qt.red)
+        color = QColor(255, 0, 0, 128)
+        self.highlighter.setColor(color)
         #self.canvas.zoomToFullExtent()
         min_z = min((layer.extent().yMinimum() for layer in self.canvas.layers()))
         max_z = max((layer.extent().yMaximum() for layer in self.canvas.layers()))
         self.canvas.setExtent(QgsRectangle(0, min_z, line.length(), max_z))
         self.canvas.refresh()
+        self.canvas.setExtent(QgsRectangle(0,-300, self.line.length(), 300))
+
+    def extents_changed(self):
+        if self.line is None:
+            return
+        ext = self.canvas.extent()
+
+        # section visibility bounds
+        start = max(0, ext.xMinimum())
+        end = start + min(self.line.length(), ext.width())
+
+        vertices = [self.line.interpolate(start).asPoint()]
+        vertex_count = len(self.line.asPolyline())
+        distance = 0
+
+        for i in range(1, vertex_count):
+            vertex_i = self.line.vertexAt(i)
+            distance += sqrt(self.line.sqrDistToVertexAt(vertex_i, i-1))
+            # 2.16 distance = self.line.distanceToVertex(i)
+
+            if distance <= start:
+                pass
+            elif distance < end:
+                vertices += [vertex_i]
+            else:
+                break
+
+        vertices += [self.line.interpolate(end).asPoint()]
+
+        self.highlighter.reset()
+        self.highlighter.addGeometry(
+            QgsGeometry.fromPolyline(vertices),
+            None)
 
 
 
