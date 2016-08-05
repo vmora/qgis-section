@@ -90,6 +90,13 @@ class Plugin():
         #        self.canvas.setExtent(self.canvas.currentLayer().extent()))
         self.iface.actionToggleEditing().triggered.connect(self.__toggle_edit)
 
+        self.iface.mapCanvas().currentLayerChanged.connect(self.__current_layer_changed)
+
+    def __current_layer_changed(self, layer):
+        for l in self.canvas.layers():
+            if l.customProperty("projected_layer") == layer.id():
+                self.layertreeview.setCurrentLayer(l)
+
     def __toggle_edit(self):
         print "__toggle_edit"
         if self.canvas.currentLayer() is None:
