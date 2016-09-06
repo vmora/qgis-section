@@ -37,7 +37,7 @@ class LineSelectTool(QgsMapTool):
 
 class SectionToolbar(QToolBar):
     line_clicked = pyqtSignal(str, float)
-    
+
     def __init__(self, canvas):
         QToolBar.__init__(self)
         self.__canvas = canvas
@@ -56,7 +56,7 @@ class SectionToolbar(QToolBar):
 
         self.__tool = None
         self.__old_tool = None
-        
+
     def __set_section_line(self):
         print "set_section_line"
         self.__tool = LineSelectTool(self.__canvas)
@@ -67,12 +67,13 @@ class SectionToolbar(QToolBar):
         layer = self.__canvas.currentLayer()
         print "add layer"
         section = QgsVectorLayer(
-            "{geomType}?crs=epsg:2154&index=yes".format(
+            "{geomType}?crs={crs}&index=yes".format(
                 geomType={
                     QGis.Point:"Point",
                     QGis.Line:"LineString",
                     QGis.Polygon:"Polygon"
-                    }[layer.geometryType()]
+                    }[layer.geometryType()],
+                crs=self.__canvas.mapSettings().destinationCrs().authid()
                 ), layer.name(), "memory")
         section.setCustomProperty("projected_layer", layer.id())
 
@@ -84,8 +85,8 @@ class SectionToolbar(QToolBar):
         section.setRendererV2(layer.rendererV2().clone())
 
         QgsMapLayerRegistry.instance().addMapLayer(section, False)
-        
+
     def __add_axis(self):
-        self.axislayer = AxisLayer()
+        self.axislayer = AxisLayer(self.__canvas.mapSettings().destinationCrs())
         QgsMapLayerRegistry.instance().addMapLayer(self.axislayer, False)
-        
+

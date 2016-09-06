@@ -86,7 +86,7 @@ class Plugin():
         QgsPluginLayerRegistry.instance().addPluginLayerType(self.axis_layer_type)
 
         #self.iface.actionZoomFullExtent().triggered.connect(self.canvas.zoomToFullExtent)
-        #self.iface.actionZoomToLayer().triggered.connect(lambda x: 
+        #self.iface.actionZoomToLayer().triggered.connect(lambda x:
         #        self.canvas.setExtent(self.canvas.currentLayer().extent()))
         self.iface.actionToggleEditing().triggered.connect(self.__toggle_edit)
 
@@ -197,8 +197,9 @@ class Plugin():
             return
         min_z = min((layer.extent().yMinimum() for layer in self.canvas.layers()))
         max_z = max((layer.extent().yMaximum() for layer in self.canvas.layers()))
-        print "z-range", min_z, max_z
-        self.canvas.setExtent(QgsRectangle(0, min_z, self.line.length(), max_z))
+        z_range = max_z - min_z
+        print "z-range", z_range
+        self.canvas.setExtent(QgsRectangle(0, min_z - z_range * 0.1, self.line.length(), max_z + z_range * 0.1))
         self.canvas.refresh()
 
     def extents_changed(self):

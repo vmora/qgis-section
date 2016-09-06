@@ -21,18 +21,17 @@ class AxisLayerType(QgsPluginLayerType):
         return False
 
 class AxisLayer(QgsPluginLayer):
-    
+
     LAYER_TYPE = "axis"
 
     __msg = pyqtSignal(str)
     __drawException = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, crs):
         QgsPluginLayer.__init__(self, AxisLayer.LAYER_TYPE, "axis plugin layer")
         self.__msg.connect(self.__print)
         self.__drawException.connect(self.__raise)
-
-        self.setCrs(QgsCoordinateReferenceSystem('EPSG:2154'))
+        self.setCrs(crs)
         self.setValid(True)
 
     def extent(self):
@@ -61,9 +60,9 @@ class AxisLayer(QgsPluginLayer):
                 painter.drawText(5, int(i*dh), "%.0f"%(ext.yMaximum()-i*dy))
                 painter.drawLine(50, int(i*dh), 60, int(i*dh))
             for i in range(nb_div+2):
-                painter.drawText(int(i*dw), height, "%.0f"%(ext.xMinimum()+i*dx))
-                painter.drawLine(int(i*dw), height-5, int(i*dw), height-15)
-        
+                painter.drawText(int(i*dw), 20, "%.0f"%(ext.xMinimum()+i*dx))
+                painter.drawLine(int(i*dw), 20, int(i*dw), 25)
+
             #if QApplication.instance().thread() == QThread.currentThread():
             #    print "main thread"
             #else:
@@ -73,4 +72,4 @@ class AxisLayer(QgsPluginLayer):
         except Exception as e:
             self.__drawException.emit(traceback.format_exc())
             return False
-        
+
