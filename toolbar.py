@@ -64,8 +64,11 @@ class SectionToolbar(QToolBar):
         self.__canvas.setMapTool(self.__tool)
 
     def __add_layer(self):
-        layer = self.__canvas.currentLayer()
         print "add layer"
+        layer = self.__canvas.currentLayer()
+
+        if layer is None:
+            return
         section = QgsVectorLayer(
             "{geomType}?crs={crs}&index=yes".format(
                 geomType={
