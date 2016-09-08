@@ -28,7 +28,7 @@ class ContextMenu(QgsLayerTreeViewMenuProvider):
         menu.addAction('remove').triggered.connect(self.__plugin.remove_current_layer)
         return menu
 
-class SectionWidget():
+class SectionWidget(object):
     def canvas(self):
         return self._canvas
 
@@ -163,8 +163,8 @@ class SectionWidget():
             self.tool = None
 
     def cleanup(self):
+        self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect(self.__map_tool_changed)
         self.__cleanup()
-        self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect()
 
         QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers)
         QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers)
