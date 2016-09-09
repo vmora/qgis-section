@@ -10,11 +10,11 @@ def hasZ(layer):
     """test if layer has z, necessary because the wkbType returned by lyers in QGSI 2.16
     has lost the information
 
-    note: we return False for a layer with no geometries
+    note: we return True for a layer with no geometries
     """
     for feat in layer.getFeatures():
         return QgsWKBTypes.hasZ(int(feat.geometry().wkbType()))
-    return False
+    return True
 
 class LayerProjection(object):
     def __init__(self, source_layer, projected_layer):
