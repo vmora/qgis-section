@@ -145,13 +145,14 @@ class SectionWidget(object):
 
     def __remove_layers(self, layer_ids):
         for layer_id in layer_ids:
-            if layer_id in self.projectionLayers:
-                self.layertreeroot.removeLayer(self.projectionLayers[layer_id].projected_layer)
-                del self.projectionLayers[layer_id]
-                print "__remove_layers", layer_id
+            print 'remove ', layer_id
             if self.axis_layer is not None and layer_id == self.axis_layer.id():
                 self.layertreeroot.removeLayer(self.axis_layer)
                 self.axis_layer = None
+            else:
+                projected_layers = self._section.unregisterProjectedLayer(layer_id)
+                for p in projected_layers:
+                    self.layertreeroot.removeLayer(p)
 
     def __add_layers(self, layers):
         for layer in layers:
@@ -165,7 +166,6 @@ class SectionWidget(object):
             if isinstance(layer, AxisLayer):
                 self.layertreeroot.addLayer(layer)
                 self.axis_layer = layer
-
 
     def __map_tool_changed(self, map_tool):
         if isinstance(map_tool, QgsMapToolPan):

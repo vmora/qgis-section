@@ -11,7 +11,7 @@ class Section(object):
     def __init__(self):
         self.line = None
         self.width = 0
-        self.projectionLayers = []
+        self.projectionLayers = {}
 
     def isValid(self):
         return not(self.line is None)
@@ -23,9 +23,11 @@ class Section(object):
         except Exception, e:
             self.line = None
 
-        for p in self.projectionLayers:
-            print p.source_layer.name(), '->', p.projected_layer.name()
-            p.apply(self)
+        for sourceId in self.projectionLayers:
+            self.updateProjections(sourceId)
+
+            for p in self.projectionLayers[sourceId]:
+                p.apply(self)
 
     def project(self, qgs_geometry):
         """returns a transformed geometry"""
@@ -41,19 +43,51 @@ class Section(object):
         return (self.line.project(Point(x, y)), z, 0)
 
     def registerProjectionLayer(self, projection):
-        print 'registerProjectionLayer:', projection.projected_layer.name()
-        self.projectionLayers += [projection]
-        # setup update logic
-        projection.source_layer.featureAdded.connect(lambda fid: projection.apply(self))
-        projection.source_layer.editCommandEnded.connect(lambda : projection.apply(self))
+        sourceId = projection.source_layer.id()
+        if not sourceId in self.projectionLayers:
+            self.projectionLayers[sourceId] = []
+            # setup update logic
+            projection.source_layer.featureAdded.connect(lambda fid: self.updateProjections(sourceId))
+            projection.source_layer.editCommandEnded.connect(lambda : self.updateProjections(sourceId))
+
+        self.projectionLayers[sourceId] += [projection]
+
+    def updateProjections(self, sourceId):
+        for p in self.projectionLayers[sourceId]:
+            p.apply(self)
 
     def unregisterProjectedLayer(self, layerId):
-        for p in self.projectionLayers:
-            if p.source_layer.id() == layerId:
-                projection.source_layer.featureAdded.disconnect()
-                projection.source_layer.editCommandEnded.disconnect()
-        self.projectionLayers = [p for p in self.projectionLayers if p.source_layer.id() != layerId]
 
+        for sourceId in self.projectionLayers:
+            sourceLayer = self.projectionLayers[sourceId][0].source_layer
+
+            # removal of source layer
+            if sourceId == layerId:
+                sourceLayer.featureAdded.disconnect()
+                sourceLayer.editCommandEnded.disconnect()
+                projection_removed = []
+
+                for p in self.projectionLayers[sourceId]:
+                    projection_removed += [ p.projected_layer ]
+
+                del self.projectionLayers[sourceId]
+                return projection_removed
+
+            else:
+                projections = self.projectionLayers[sourceId]
+                for p in projections:
+                    if p.projected_layer.id() == layerId:
+                        projection_removed = [ p.projected_layer ]
+
+                        self.projectionLayers[sourceId] = [p for p in projections if p.projected_layer.id() != layerId]
+                        if len(self.projectionLayers[sourceId]) == 0:
+                            sourceLayer.featureAdded.disconnect()
+                            sourceLayer.editCommandEnded.disconnect()
+                            del self.projectionLayers[sourceId]
+
+                        return projection_removed
+
+        return []
 
     def __getattr__(self, name):
         if name == "line":
