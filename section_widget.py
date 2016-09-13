@@ -3,12 +3,13 @@
 from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
 from qgis.gui import *
 
-from PyQt4.QtCore import Qt
+from PyQt4.QtCore import Qt, pyqtSignal
 from PyQt4.QtGui import QDockWidget, QMenu, QColor
 
 from .section_layer import LayerProjection
 from .toolbar import SectionToolbar, LineSelectTool
 from .axis_layer import AxisLayer, AxisLayerType
+from .section import Section
 
 from math import sqrt
 
@@ -38,6 +39,9 @@ class SectionWidget(object):
     def section_layers_tree(self):
         return self.layertreeview
 
+    def section(self):
+        return self._section
+
     def __init__(self, iface):
         self.iface = iface
 
@@ -45,15 +49,15 @@ class SectionWidget(object):
 
         self._toolbar = SectionToolbar(iface.mapCanvas())
         # self.iface.addToolBar(self._toolbar)
-        self._toolbar.line_clicked.connect(self.__set_section_line)
+        self._toolbar.line_clicked.connect(self.__define_section_line)
 
-        self.layers = {}
         self.axis_layer = None
 
         canvas = QgsMapCanvas()
         canvas.setWheelAction(QgsMapCanvas.WheelZoomToMouseCursor)
         canvas.setCrsTransformEnabled(False)
 
+        self._section = Section()
 
         self._canvas = canvas
         self._canvas.extentsChanged.connect(self.extents_changed)
@@ -96,19 +100,39 @@ class SectionWidget(object):
 
         iface.mapCanvas().currentLayerChanged.connect(self.__current_layer_changed)
 
+
+    def cleanup(self):
+        self._canvas.extentsChanged.disconnect(self.extents_changed)
+        self._toolbar.line_clicked.disconnect(self.__define_section_line)
+        self.iface.actionToggleEditing().triggered.disconnect(self.__toggle_edit)
+        self.layertreeview.currentLayerChanged.disconnect(self._canvas.setCurrentLayer)
+        self.iface.mapCanvas().currentLayerChanged.disconnect(self.__current_layer_changed)
+        self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect(self.__map_tool_changed)
+        self.__cleanup()
+
+        QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers)
+        QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers)
+
+        QgsPluginLayerRegistry.instance().removePluginLayerType(AxisLayer.LAYER_TYPE)
+        self._canvas.clear()
+
+
     def __current_layer_changed(self, layer):
-        for l in self._canvas.layers():
-            if l.customProperty("projected_layer") == layer.id():
-                self.layertreeview.setCurrentLayer(l)
+        if layer is None:
+            self.layertreeview.setCurrentLayer(None)
+        else:
+            for l in self._canvas.layers():
+                if l.customProperty("projected_layer") == layer.id():
+                    self.layertreeview.setCurrentLayer(l)
 
     def __toggle_edit(self):
-        print "__toggle_edit"
-        if self._canvas.currentLayer() is None:
-            return
-        if self._canvas.currentLayer().isEditable():
-            self._canvas.currentLayer().rollBack()
+        currentLayer = self._canvas.currentLayer()
+        if currentLayer is None:
+            pass
+        elif currentLayer.isEditable():
+            currentLayer.rollBack()
         else:
-            self._canvas.currentLayer().startEditing()
+            currentLayer.startEditing()
 
     def __open_layer_props(self):
         print "currentLayer", self._canvas.currentLayer(), self.layertreeview.currentNode()
@@ -121,9 +145,9 @@ class SectionWidget(object):
 
     def __remove_layers(self, layer_ids):
         for layer_id in layer_ids:
-            if layer_id in self.layers:
-                self.layertreeroot.removeLayer(self.layers[layer_id].projected_layer)
-                del self.layers[layer_id]
+            if layer_id in self.projectionLayers:
+                self.layertreeroot.removeLayer(self.projectionLayers[layer_id].projected_layer)
+                del self.projectionLayers[layer_id]
                 print "__remove_layers", layer_id
             if self.axis_layer is not None and layer_id == self.axis_layer.id():
                 self.layertreeroot.removeLayer(self.axis_layer)
@@ -136,13 +160,8 @@ class SectionWidget(object):
                 source_layer = QgsMapLayerRegistry.instance().mapLayer(
                         layer.customProperty("projected_layer"))
                 if source_layer is not None:
-                    projection = LayerProjection(source_layer, layer)
-                    self._toolbar.line_clicked.disconnect(self.__set_section_line)
-                    self._toolbar.line_clicked.connect(projection.apply)
-                    self._toolbar.line_clicked.connect(self.__set_section_line)
-                    self.layers[layer.id()] = projection
                     self.layertreeroot.addLayer(layer)
-                    print "__add_layers", layer.name()
+                    self._section.registerProjectionLayer(LayerProjection(source_layer, layer))
             if isinstance(layer, AxisLayer):
                 self.layertreeroot.addLayer(layer)
                 self.axis_layer = layer
@@ -162,60 +181,54 @@ class SectionWidget(object):
             self._canvas.setMapTool(None)
             self.tool = None
 
-    def cleanup(self):
-        self.iface.mapCanvas().mapToolSet[QgsMapTool].disconnect(self.__map_tool_changed)
-        self.__cleanup()
-
-        QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers)
-        QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers)
-
-        QgsPluginLayerRegistry.instance().removePluginLayerType(AxisLayer.LAYER_TYPE)
-
-
     def __cleanup(self):
         if self.highlighter is not None:
             self.iface.mapCanvas().scene().removeItem(self.highlighter)
             self.iface.mapCanvas().refresh()
             self.highlighter = None
+        self._section.update(None)
 
-    def __set_section_line(self, line_wkt, width):
-        print "SelecteD", line_wkt
-        line = None
+    def __define_section_line(self, line_wkt, width):
+        print "Selected section line", line_wkt
         self.__cleanup()
 
-        self.line = QgsGeometry.fromWkt(line_wkt)
+        self._section.update(line_wkt, width)
+
         self.highlighter = QgsRubberBand(self.iface.mapCanvas(), QGis.Line)
-        self.highlighter.addGeometry(self.line, None)
+        self.highlighter.addGeometry(QgsGeometry.fromWkt(self._section.line.wkt), None) # todo use section.line
         self.highlighter.setWidth(width/self.iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
         color = QColor(255, 0, 0, 128)
         self.highlighter.setColor(color)
-        #self._canvas.zoomToFullExtent()
+
         if not len(self._canvas.layers()):
             return
         min_z = min((layer.extent().yMinimum() for layer in self._canvas.layers()))
         max_z = max((layer.extent().yMaximum() for layer in self._canvas.layers()))
         z_range = max_z - min_z
         print "z-range", z_range
-        self._canvas.setExtent(QgsRectangle(0, min_z - z_range * 0.1, self.line.length(), max_z + z_range * 0.1))
+        self._canvas.setExtent(QgsRectangle(0, min_z - z_range * 0.1, self._section.line.length, max_z + z_range * 0.1))
         self._canvas.refresh()
 
     def extents_changed(self):
-        if self.line is None:
+        if not self._section.isValid():
             return
+
         ext = self._canvas.extent()
+
+        line = QgsGeometry.fromWkt(self._section.line.wkt)
 
         # section visibility bounds
         start = max(0, ext.xMinimum())
-        end = start + min(self.line.length(), ext.width())
+        end = start + min(line.length(), ext.width())
 
-        vertices = [self.line.interpolate(start).asPoint()]
-        vertex_count = len(self.line.asPolyline())
+        vertices = [line.interpolate(start).asPoint()]
+        vertex_count = len(line.asPolyline())
         distance = 0
 
         for i in range(1, vertex_count):
-            vertex_i = self.line.vertexAt(i)
-            distance += sqrt(self.line.sqrDistToVertexAt(vertex_i, i-1))
-            # 2.16 distance = self.line.distanceToVertex(i)
+            vertex_i = line.vertexAt(i)
+            distance += sqrt(line.sqrDistToVertexAt(vertex_i, i-1))
+            # 2.16 distance = line.distanceToVertex(i)
 
             if distance <= start:
                 pass
@@ -224,7 +237,7 @@ class SectionWidget(object):
             else:
                 break
 
-        vertices += [self.line.interpolate(end).asPoint()]
+        vertices += [line.interpolate(end).asPoint()]
 
         self.highlighter.reset()
         self.highlighter.addGeometry(

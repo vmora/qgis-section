@@ -37,6 +37,7 @@ class LineSelectTool(QgsMapTool):
 
 class SectionToolbar(QToolBar):
     line_clicked = pyqtSignal(str, float)
+    projected_layer_created = pyqtSignal(QgsVectorLayer, QgsVectorLayer)
 
     def __init__(self, canvas):
         QToolBar.__init__(self)
@@ -88,6 +89,8 @@ class SectionToolbar(QToolBar):
         section.setRendererV2(layer.rendererV2().clone())
 
         QgsMapLayerRegistry.instance().addMapLayer(section, False)
+
+        self.projected_layer_created.emit(layer, section)
 
     def __add_axis(self):
         self.axislayer = AxisLayer(self.__canvas.mapSettings().destinationCrs())
