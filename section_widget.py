@@ -168,18 +168,9 @@ class SectionWidget(object):
                 self.axis_layer = layer
 
     def __map_tool_changed(self, map_tool):
-        if isinstance(map_tool, QgsMapToolPan):
-            self.tool = QgsMapToolPan(self._canvas)
-            self._canvas.setMapTool(self.tool)
-        elif isinstance(map_tool, QgsMapToolZoom):
-            self.tool = QgsMapToolZoom(self._canvas, map_tool.action().text().find(u"+") == -1)
-            self._canvas.setMapTool(self.tool)
-        elif isinstance(map_tool, LineSelectTool):
-            print 'line select tool'
-            pass
-        else:
-            self._canvas.setMapTool(None)
-            self.tool = None
+        print '_maptoolchanged'
+
+        self._toolbar.selectLineAction.setChecked(isinstance(map_tool, LineSelectTool))
 
     def __cleanup(self):
         if self.highlighter is not None:

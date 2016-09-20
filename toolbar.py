@@ -48,7 +48,9 @@ class SectionToolbar(QToolBar):
         self.addAction('axis').triggered.connect(self.__add_axis)
 
         self.addAction(icon('add_layer.svg'), 'add projected layer').triggered.connect(self.__add_layer)
-        self.addAction(icon('select_line.svg'), 'select line').triggered.connect(self.__set_section_line)
+        self.selectLineAction = self.addAction(icon('select_line.svg'), 'select line')
+        self.selectLineAction.setCheckable(True)
+        self.selectLineAction.triggered.connect(self.__set_section_line)
 
         self.buffer_width = QLineEdit("100")
         self.buffer_width.setMaximumWidth(50)
