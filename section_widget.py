@@ -60,7 +60,10 @@ class SectionWidget(object):
         self._section = Section()
 
         self._canvas = canvas
+
+        # Connect to both canvas /extents_changed/ signal
         self._canvas.extentsChanged.connect(self.extents_changed)
+        self.iface.mapCanvas().extentsChanged.connect(self.extents_changed)
 
         # tool synchro
         self.tool = None
@@ -103,6 +106,7 @@ class SectionWidget(object):
 
     def cleanup(self):
         self._canvas.extentsChanged.disconnect(self.extents_changed)
+        self.iface.mapCanvas().extentsChanged.disconnect(self.extents_changed)
         self._toolbar.line_clicked.disconnect(self.__define_section_line)
         self.iface.actionToggleEditing().triggered.disconnect(self.__toggle_edit)
         self.layertreeview.currentLayerChanged.disconnect(self._canvas.setCurrentLayer)
@@ -234,3 +238,5 @@ class SectionWidget(object):
         self.highlighter.addGeometry(
             QgsGeometry.fromPolyline(vertices),
             None)
+        self.highlighter.setWidth(self._section.width/self.iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
+
