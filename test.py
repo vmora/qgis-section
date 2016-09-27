@@ -66,7 +66,7 @@ def list_tests():
                             ).replace(base_dir, "qgis_section").split(os.sep))[:-3]
                 if test not in excludes:
                     tests.append(test)
-    # tests += ['qgis_section.docs.build']
+    tests += ['qgis_section.docs.build']
 
     return tests
 
