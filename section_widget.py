@@ -11,6 +11,9 @@ from .toolbar import SectionToolbar, LineSelectTool
 from .axis_layer import AxisLayer, AxisLayerType
 from .section import Section
 
+from .section_tools import SelectionTool
+from .section_helpers import projected_layer_to_original
+
 from math import sqrt
 
 #@qgsfunction(args="auto", group='Custom')
@@ -103,6 +106,45 @@ class SectionWidget(object):
 
         iface.mapCanvas().currentLayerChanged.connect(self.__current_layer_changed)
 
+    def build_default_section_actions(self):
+        return [
+            { 'icon': QgsApplication.getThemeIcon('/mActionPan.svg'), 'label': 'pan', 'tool': QgsMapToolPan(self._canvas) },
+            { 'icon': QgsApplication.getThemeIcon('/mActionZoomIn.svg'), 'label': 'zoom in', 'tool': QgsMapToolZoom(self._canvas, False) },
+            { 'icon': QgsApplication.getThemeIcon('/mActionZoomOut.svg'), 'label': 'zoom out', 'tool': QgsMapToolZoom(self._canvas, True) },
+            { 'icon': QgsApplication.getThemeIcon('/mActionSelect.svg'), 'label': 'select', 'tool': SelectionTool(self._canvas) }
+        ]
+
+    def add_section_actions_to_toolbar(self, actions, toolbar):
+        self.section_actions = []
+
+        for action in actions:
+            if action is None:
+                toolbar.addSeparator()
+                continue
+
+            act = toolbar.addAction(action['icon'], action['label'])
+
+            if 'tool' in action:
+                act.setCheckable(True)
+                tl = action['tool']
+                act.triggered.connect(lambda checked, tool=tl: self._setSectionCanvasTool(checked, tool))
+            elif 'clicked' in action:
+                act.setCheckable(False)
+                act.triggered.connect(action['clicked'])
+
+            action['action'] = act
+            self.section_actions += [ action ]
+
+    def _setSectionCanvasTool(self, checked, tool):
+        if not checked:
+            return
+
+        self._canvas.setMapTool(tool)
+
+        for action in self.section_actions:
+            if 'tool' in action:
+                action['action'].setChecked(tool == action['tool'])
+
 
     def cleanup(self):
         self._canvas.extentsChanged.disconnect(self.extents_changed)
@@ -130,6 +172,8 @@ class SectionWidget(object):
                     self.layertreeview.setCurrentLayer(l)
 
     def __toggle_edit(self):
+        # stop synchronizing edition as well
+        return
         currentLayer = self._canvas.currentLayer()
         if currentLayer is None:
             pass
@@ -162,8 +206,7 @@ class SectionWidget(object):
         for layer in layers:
             print "adding layer", layer.name()
             if layer.customProperty("projected_layer") is not None:
-                source_layer = QgsMapLayerRegistry.instance().mapLayer(
-                        layer.customProperty("projected_layer"))
+                source_layer = projected_layer_to_original(layer)
                 if source_layer is not None:
                     self.layertreeroot.addLayer(layer)
                     self._section.registerProjectionLayer(LayerProjection(source_layer, layer))
