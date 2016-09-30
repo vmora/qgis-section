@@ -1,122 +1,134 @@
-# -*- coding: UTF-8 -*-
+# coding=utf-8
 
-from qgis.core import QgsMapSettings
-                     #QgsExpressionContext
-                     #QgsExpressionContextScope
-                     #QgsExpressionContextUtils
+from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
+from qgis.gui import *
 
-from PyQt4.QtCore import Qt
-from PyQt4.QtGui import QGraphicsView, QGraphicsPixmapItem, QPixmap, QImage, QGraphicsScene
+from PyQt4.QtCore import Qt, pyqtSignal
+from PyQt4.QtGui import QMenu, QColor, QWidget
 
-class Canvas(QGraphicsView):
+from .layer import Layer
+from .toolbar import Toolbar, LineSelectTool
 
-    def __init__(self, parent=None):
-        QGraphicsView.__init__(self, QGraphicsScene(), parent)
-        self.__map = QGraphicsPixmapItem()
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.__map.setPixmap(QPixmap.fromImage(QImage('/tmp/plop.jpg')))
-        self.scene().addItem(self.__map)
+from .section_tools import SelectionTool
 
-        self.__refresh_scheduled = False
-        #self.__expression_context_scope = QgsExpressionContextScope("Section Canvas")
-        self.__settings = QgsMapSettings()
-
-    # void setMagnificationFactor( double factor );
-    # double magnificationFactor() const;
+from math import sqrt
 
 
-    # void setLayerSet( QList<QgsMapCanvasLayer>& layers );
-    # void setCurrentLayer( QgsMapLayer* layer );
-    # void updateOverview();
-    # void enableOverviewMode( QgsMapOverviewCanvas* overview );
-    # const QgsMapSettings& mapSettings() const;
+class Canvas(QgsMapCanvas):
 
+    def __init__(self, section, iface, parent=None):
+        QgsMapCanvas.__init__(self, parent)
+        self.setWheelAction(QgsMapCanvas.WheelZoomToMouseCursor)
+        self.setCrsTransformEnabled(False)
 
-    # void refreshAllLayers();
+        self.__iface = iface
+        self.__highlighter = None
+        self.__section = section
 
-    # double scale();
+        section.changed.connect(self.__define_section_line)
 
-    # double mapUnitsPerPixel() const;
+        self.extentsChanged.connect(self.__extents_changed)
+        iface.mapCanvas().extentsChanged.connect(self.__extents_changed)
 
-    # QgsRectangle extent() const; # ligne support (linestring), largeur (de recup des données) + 2 ordonnees min/max sur la courbe
-    # QgsRectangle fullExtent() const;
-    # void setExtent( const QgsRectangle &r, bool magnified = false );
+    def __del__(self):
+        print "Canvas.__del__"
 
-    # void setCenter( const QgsPoint& center );
-    # QgsPoint center() const;
+    def build_default_section_actions(self):
+        return [
+            { 'icon': QgsApplication.getThemeIcon('/mActionPan.svg'), 'label': 'pan', 'tool': QgsMapToolPan(self) },
+            { 'icon': QgsApplication.getThemeIcon('/mActionZoomIn.svg'), 'label': 'zoom in', 'tool': QgsMapToolZoom(self, False) },
+            { 'icon': QgsApplication.getThemeIcon('/mActionZoomOut.svg'), 'label': 'zoom out', 'tool': QgsMapToolZoom(self, True) },
+            { 'icon': QgsApplication.getThemeIcon('/mActionSelect.svg'), 'label': 'select', 'tool': SelectionTool(self) }
+        ]
 
-    # void zoomToFullExtent();
-    # void zoomToPreviousExtent(); #plus tard
-    # void zoomToNextExtent();#plus tard
-    # void clearExtentHistory();#plus tard
+    def add_section_actions_to_toolbar(self, actions, toolbar):
+        self.section_actions = []
 
-    # void zoomToSelected( QgsVectorLayer* layer = nullptr );
-    # void zoomToFeatureIds( QgsVectorLayer* layer, const QgsFeatureIds& ids );#plus tard
-    # void panToSelected( QgsVectorLayer* layer = nullptr );
-    # void setMapTool( QgsMapTool* mapTool );# ? pê
-    # void unsetMapTool( QgsMapTool* mapTool );# ? pê
-    # QgsMapTool* mapTool();# ? pê
+        for action in actions:
+            if action is None:
+                toolbar.addSeparator()
+                continue
 
-    # virtual void setCanvasColor( const QColor & _newVal );#plus tard
-    # virtual QColor canvasColor() const;#plus tard
+            act = toolbar.addAction(action['icon'], action['label'])
 
-    # void setSelectionColor( const QColor& color );#plus tard
+            if 'tool' in action:
+                act.setCheckable(True)
+                tl = action['tool']
+                act.triggered.connect(lambda checked, tool=tl: self._setSectionCanvasTool(checked, tool))
+            elif 'clicked' in action:
+                act.setCheckable(False)
+                act.triggered.connect(action['clicked'])
 
-    # QgsMapLayer *layer( int index );
-    # int layerCount() const;
-    # QList<QgsMapLayer*> layers() const;
+            action['action'] = act
+            self.section_actions += [ action ]
 
-    # void setMapUnits( QGis::UnitType mapUnits );
-    # QGis::UnitType mapUnits() const;
-
-    # const QgsMapToPixel* getCoordinateTransform();
-
-    # bool isDrawing();
-
-    # QgsMapLayer* currentLayer();
-
-    # void setWheelFactor( double factor );
-    # void zoomScale( double scale ); # plus tard
-    # void zoomByFactor( double scaleFactor, const QgsPoint *center = nullptr );
-    # void zoomWithCenter( int x, int y, bool zoomIn );
-
-    # QgsSnappingUtils* snappingUtils() const;
-    # void setSnappingUtils( QgsSnappingUtils* utils );
-
-    # void setExpressionContextScope( const QgsExpressionContextScope& scope ) { mExpressionContextScope = scope; }
-    # QgsExpressionContextScope& expressionContextScope() { return mExpressionContextScope; }
-    # const QgsExpressionContextScope& expressionContextScope() const { return mExpressionContextScope; }
-
-    def refresh(self):
-        if self.__refresh_scheduled:
+    def _setSectionCanvasTool(self, checked, tool):
+        if not checked:
             return
-        self.__refresh_scheduled = True
-        QTimer.singleShot(self.__refresh_map)
 
-    def __refresh_map(self):
-        self.stopRendering()
-        self.__refresh_scheduled = False
-        #expression_context = QgsExpressionContext()
-        #expressionContext << QgsExpressionContextUtils.globalScope() \
-        #    << QgsExpressionContextUtils.projectScope() \
-        #    << QgsExpressionContextUtils.mapSettingsScope(self.__settings) \
-        #    << QgsExpressionContextScope(self.__expression_context_scope)
-        
-        
+        self.setMapTool(tool)
 
-    # void selectionChangedSlot();
-    # void saveAsImage( const QString& theFileName, QPixmap * QPixmap = nullptr, const QString& = "PNG" );
-    # void layerStateChange();
-    # void setRenderFlag( bool theFlag );
-    # bool renderFlag() {return mRenderFlag;}
-    # void stopRendering();
+        for action in self.section_actions:
+            if 'tool' in action:
+                action['action'].setChecked(tool == action['tool'])
 
-    # void readProject( const QDomDocument & );
-    # void writeProject( QDomDocument & );
 
-    def set_section_line(self, line, width):
-        print width
-        pass
-        
+    def __cleanup(self):
+        if self.__highlighter is not None:
+            self.__iface.mapCanvas().scene().removeItem(self.__highlighter)
+            self.__iface.mapCanvas().refresh()
+            self.__highlighter = None
+            print 
+
+    def __define_section_line(self, line_wkt, width):
+        self.__cleanup()
+        if not line_wkt:
+            return
+        self.__highlighter = QgsRubberBand(self.__iface.mapCanvas(), QGis.Line)
+        self.__highlighter.addGeometry(QgsGeometry.fromWkt(line_wkt), None) # todo use section.line
+        self.__highlighter.setWidth(width/self.__iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
+        color = QColor(255, 0, 0, 128)
+        self.__highlighter.setColor(color)
+
+        if not len(self.layers()):
+            return
+        min_z = min((layer.extent().yMinimum() for layer in self.layers()))
+        max_z = max((layer.extent().yMaximum() for layer in self.layers()))
+        z_range = max_z - min_z
+        print "z-range", z_range
+        self.setExtent(QgsRectangle(0, min_z - z_range * 0.1, self.__section.line.length, max_z + z_range * 0.1))
+        self.refresh()
+
+    def __extents_changed(self):
+        if not self.__section.is_valid:
+            return
+
+        ext = self.extent()
+
+        line = QgsGeometry.fromWkt(self.__section.line.wkt)
+
+        # section visibility bounds
+        start = max(0, ext.xMinimum())
+        end = start + min(line.length(), ext.width())
+
+        vertices = [line.interpolate(start).asPoint()]
+        vertex_count = len(line.asPolyline())
+        distance = 0
+
+        for i in range(1, vertex_count):
+            vertex_i = line.vertexAt(i)
+            distance += sqrt(line.sqrDistToVertexAt(vertex_i, i-1))
+            # 2.16 distance = line.distanceToVertex(i)
+
+            if distance <= start:
+                pass
+            elif distance < end:
+                vertices += [vertex_i]
+            else:
+                break
+
+        vertices += [line.interpolate(end).asPoint()]
+
+        if self.__highlighter is not None:
+            self.__highlighter.setWidth(self.__section.width/self.__iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
 

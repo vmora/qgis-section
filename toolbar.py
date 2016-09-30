@@ -12,13 +12,13 @@ import os
 from .axis_layer import AxisLayer
 from .section_tools import LineSelectTool
 
-class SectionToolbar(QToolBar):
+class Toolbar(QToolBar):
     line_clicked = pyqtSignal(str, float)
-    projected_layer_created = pyqtSignal(QgsVectorLayer, QgsVectorLayer)
 
-    def __init__(self, canvas):
+    def __init__(self, section_id, iface_canvas):
         QToolBar.__init__(self)
-        self.__canvas = canvas
+        self.__iface_canvas = iface_canvas
+        self.__section_id = section_id
 
         icon = lambda name: QIcon(os.path.join(os.path.dirname(__file__), name))
 
@@ -37,15 +37,18 @@ class SectionToolbar(QToolBar):
         self.__tool = None
         self.__old_tool = None
 
+        self.__map_tool_changed(iface_canvas.mapTool())
+        iface_canvas.mapToolSet.connect(self.__map_tool_changed)
+
     def __set_section_line(self):
         print "set_section_line"
-        self.__tool = LineSelectTool(self.__canvas)
+        self.__tool = LineSelectTool(self.__iface_canvas)
         self.__tool.line_clicked.connect(lambda wkt_: self.line_clicked.emit(wkt_, float(self.buffer_width.text())))
-        self.__canvas.setMapTool(self.__tool)
+        self.__iface_canvas.setMapTool(self.__tool)
 
     def __add_layer(self):
         print "add layer"
-        layer = self.__canvas.currentLayer()
+        layer = self.__iface_canvas.currentLayer()
 
         if layer is None:
             return
@@ -56,8 +59,9 @@ class SectionToolbar(QToolBar):
                     QGis.Line:"LineString",
                     QGis.Polygon:"Polygon"
                     }[layer.geometryType()],
-                crs=self.__canvas.mapSettings().destinationCrs().authid()
+                crs=self.__iface_canvas.mapSettings().destinationCrs().authid()
                 ), layer.name(), "memory")
+        section.setCustomProperty("section_id", self.__section_id)
         section.setCustomProperty("projected_layer", layer.id())
 
         # cpy attributes structure
@@ -66,12 +70,11 @@ class SectionToolbar(QToolBar):
 
         # cpy style
         section.setRendererV2(layer.rendererV2().clone())
-
         QgsMapLayerRegistry.instance().addMapLayer(section, False)
 
-        self.projected_layer_created.emit(layer, section)
-
     def __add_axis(self):
-        self.axislayer = AxisLayer(self.__canvas.mapSettings().destinationCrs())
-        QgsMapLayerRegistry.instance().addMapLayer(self.axislayer, False)
+        axislayer = AxisLayer(self.__iface_canvas.mapSettings().destinationCrs())
+        QgsMapLayerRegistry.instance().addMapLayer(axislayer, False)
 
+    def __map_tool_changed(self, map_tool):
+        self.selectLineAction.setChecked(isinstance(map_tool, LineSelectTool))

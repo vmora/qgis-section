@@ -16,11 +16,14 @@ def hasZ(layer):
         return QgsWKBTypes.hasZ(int(feat.geometry().wkbType()))
     return True
 
-class LayerProjection(object):
+class Layer(object):
     def __init__(self, source_layer, projected_layer):
         self.source_layer = source_layer
         self.projected_layer = projected_layer
         assert hasZ(source_layer) # @todo remove this and configure attribute for z
+
+    def __del__(self):
+        print "Layer.__del__"
 
     def apply(self, section):
         "project source features on section plnae defined by line"
@@ -28,7 +31,7 @@ class LayerProjection(object):
         projected = self.projected_layer
         projected.dataProvider().deleteFeatures(projected.allFeatureIds())
 
-        if not (section.isValid()):
+        if not section.is_valid:
             return None
 
         print "projecting ", self.source_layer.name(), self.projected_layer.geometryType()
