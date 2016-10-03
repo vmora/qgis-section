@@ -40,6 +40,10 @@ class Toolbar(QToolBar):
         self.__map_tool_changed(iface_canvas.mapTool())
         iface_canvas.mapToolSet.connect(self.__map_tool_changed)
 
+    def unload(self):
+        if self.__iface_canvas.mapTool() == self.__tool:
+            self.__iface_canvas.unsetMapTool(self.__tool)
+
     def __set_section_line(self):
         print "set_section_line"
         self.__tool = LineSelectTool(self.__iface_canvas)

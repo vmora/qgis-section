@@ -42,9 +42,6 @@ class SelectionTool(QgsMapToolEmitPoint):
 
         self.canvasClicked.connect(self._new_point)
 
-    def __del__(self):
-        self.canvasClicked.disconnect(self._new_point)
-
     @staticmethod
     def nearest_feature(canvas, layer, point):
         radius = QgsMapTool.searchRadiusMU(canvas)

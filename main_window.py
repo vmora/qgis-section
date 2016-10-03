@@ -43,6 +43,13 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, self.__toolbar)
         self.setCentralWidget(self.__canvas)
 
+    def unload(self):
+        self.__canvas.unload()
+        self.__toolbar.unload()
+
+        self.removeToolBar(self.__toolbar)
+
+
     def __getattr__(self, name):
         if name == "canvas":
             return self.__canvas

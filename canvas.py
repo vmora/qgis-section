@@ -30,8 +30,8 @@ class Canvas(QgsMapCanvas):
         self.extentsChanged.connect(self.__extents_changed)
         iface.mapCanvas().extentsChanged.connect(self.__extents_changed)
 
-    def __del__(self):
-        print "Canvas.__del__"
+    def unload(self):
+        self.__cleanup()
 
     def build_default_section_actions(self):
         return [
@@ -76,9 +76,8 @@ class Canvas(QgsMapCanvas):
     def __cleanup(self):
         if self.__highlighter is not None:
             self.__iface.mapCanvas().scene().removeItem(self.__highlighter)
-            self.__iface.mapCanvas().refresh()
             self.__highlighter = None
-            print 
+            self.__iface.mapCanvas().refresh()
 
     def __define_section_line(self, line_wkt, width):
         self.__cleanup()

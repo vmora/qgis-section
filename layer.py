@@ -22,9 +22,6 @@ class Layer(object):
         self.projected_layer = projected_layer
         assert hasZ(source_layer) # @todo remove this and configure attribute for z
 
-    def __del__(self):
-        print "Layer.__del__"
-
     def apply(self, section):
         "project source features on section plnae defined by line"
 
