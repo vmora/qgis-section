@@ -7,6 +7,8 @@ from PyQt4.QtCore import Qt, pyqtSignal
 from PyQt4.QtGui import QApplication, QColor
 
 from .helpers import projected_layer_to_original, projected_feature_to_original
+from shapely.geometry import LineString
+
 
 class LineSelectTool(QgsMapTool):
     line_clicked = pyqtSignal(str)

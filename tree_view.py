@@ -1,8 +1,9 @@
 # coding=utf-8
-
+from qgis.core import *
 from qgis.gui import *
 
 from .helpers import projected_layer_to_original
+from PyQt4.QtGui import QMenu
 
 class ContextMenu(QgsLayerTreeViewMenuProvider):
     def __init__(self, tree_view):
@@ -31,5 +32,5 @@ class TreeView(QgsLayerTreeView):
         self.setMenuProvider(self.__context_menu)
         self.doubleClicked.connect(self.__context_menu.open_layer_props)
         self.__bridge = QgsLayerTreeMapCanvasBridge(section.layer_tree_model.rootGroup(), canvas)
-        #self.currentLayerChanged.connect(canvas.setCurrentLayer)
+        self.currentLayerChanged.connect(canvas.setCurrentLayer)
 
