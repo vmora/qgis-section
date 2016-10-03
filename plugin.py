@@ -14,6 +14,7 @@ class Plugin():
         self.__legend_dock.setWidget(self.__section_main.tree_view)
 
     def initGui(self):
+        self.__section_main.add_default_section_buttons()
         self.__iface.addDockWidget(Qt.BottomDockWidgetArea, self.__dock)
         self.__iface.addDockWidget(Qt.LeftDockWidgetArea, self.__legend_dock)
 

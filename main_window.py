@@ -43,6 +43,10 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, self.__toolbar)
         self.setCentralWidget(self.__canvas)
 
+    def add_default_section_buttons(self):
+        actions = self.__canvas.build_default_section_actions()
+        self.__canvas.add_section_actions_to_toolbar(actions, self.__toolbar)
+
     def unload(self):
         self.__canvas.unload()
         self.__toolbar.unload()

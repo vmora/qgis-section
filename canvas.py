@@ -4,12 +4,12 @@ from qgis.core import * # unable to import QgsWKBTypes otherwize (quid?)
 from qgis.gui import *
 
 from PyQt4.QtCore import Qt, pyqtSignal
-from PyQt4.QtGui import QMenu, QColor, QWidget
+from PyQt4.QtGui import QMenu, QColor, QWidget, QMessageBox
 
 from .layer import Layer
 from .toolbar import Toolbar, LineSelectTool
 
-from .section_tools import SelectionTool
+from .section_tools import SelectionTool, MoveFeatureTool
 
 from math import sqrt
 
@@ -29,6 +29,7 @@ class Canvas(QgsMapCanvas):
 
         self.extentsChanged.connect(self.__extents_changed)
         iface.mapCanvas().extentsChanged.connect(self.__extents_changed)
+        self.currentLayerChanged.connect(self.__update_layer_action_states)
 
     def unload(self):
         self.__cleanup()
@@ -38,7 +39,10 @@ class Canvas(QgsMapCanvas):
             { 'icon': QgsApplication.getThemeIcon('/mActionPan.svg'), 'label': 'pan', 'tool': QgsMapToolPan(self) },
             { 'icon': QgsApplication.getThemeIcon('/mActionZoomIn.svg'), 'label': 'zoom in', 'tool': QgsMapToolZoom(self, False) },
             { 'icon': QgsApplication.getThemeIcon('/mActionZoomOut.svg'), 'label': 'zoom out', 'tool': QgsMapToolZoom(self, True) },
-            { 'icon': QgsApplication.getThemeIcon('/mActionSelect.svg'), 'label': 'select', 'tool': SelectionTool(self) }
+            None,
+            { 'icon': QgsApplication.getThemeIcon('/mActionSelect.svg'), 'label': 'select', 'tool': SelectionTool(self) },
+            { 'icon': QgsApplication.getThemeIcon('/mActionToggleEditing.svg'), 'label': 'toggle edit', 'clicked': self.__toggle_edit, 'layer_state': lambda l: l.isEditable()},
+            { 'icon': QgsApplication.getThemeIcon('/mActionMoveFeature.svg'), 'label': 'move feature', 'tool': MoveFeatureTool(self) },
         ]
 
     def add_section_actions_to_toolbar(self, actions, toolbar):
@@ -56,7 +60,7 @@ class Canvas(QgsMapCanvas):
                 tl = action['tool']
                 act.triggered.connect(lambda checked, tool=tl: self._setSectionCanvasTool(checked, tool))
             elif 'clicked' in action:
-                act.setCheckable(False)
+                act.setCheckable('layer_state' in action)
                 act.triggered.connect(action['clicked'])
 
             action['action'] = act
@@ -131,3 +135,37 @@ class Canvas(QgsMapCanvas):
         if self.__highlighter is not None:
             self.__highlighter.setWidth(self.__section.width/self.__iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
 
+    def __toggle_edit(self, checked):
+        #TODO: simplistic implementation. Would be nice to be able to use QgisApp::toggleEditing( QgsMapLayer *layer, bool allowCancel)
+        currentLayer = self.currentLayer()
+
+        if currentLayer is None:
+            self.__update_layer_action_states()
+        else:
+            print checked
+            if checked:
+                if not currentLayer.isReadOnly():
+                    currentLayer.startEditing()
+            else:
+                if currentLayer.isModified():
+                    res = QMessageBox.information(None, "Stop editing", "Do you want to save the changes to layer {}?".format(currentLayer.name()), QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+
+                    print res
+                    if res == QMessageBox.Cancel:
+                        return
+                    elif res == QMessageBox.Discard:
+                        currentLayer.rollBack()
+                        currentLayer.triggerRepaint()
+                    else:
+                        currentLayer.commitChanges()
+                else:
+                    currentLayer.rollBack()
+
+
+
+    def __update_layer_action_states(self):
+        currentLayer = self.currentLayer()
+
+        for action in self.section_actions:
+            if 'layer_state' in action:
+                action['action'].setChecked(False if currentLayer is None else action['layer_state'](currentLayer))
