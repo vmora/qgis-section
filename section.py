@@ -21,7 +21,7 @@ class Section(QObject):
         self.__line = None
         self.__id = id_
         self.__width = 0
-        self.__projection_layers = {}
+        self.__projections = {}
         self.__layer_tree_root = QgsLayerTreeGroup()
         self.__layer_tree_model = QgsLayerTreeModel(self.__layer_tree_root)
         self.__layer_tree_model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility, True)
@@ -48,10 +48,8 @@ class Section(QObject):
         except Exception, e:
             self.__line = None
 
-        for sourceId in self.__projection_layers:
+        for sourceId in self.__projections:
             self.update_projections(sourceId)
-            for p in self.__projection_layers[sourceId]:
-                p.apply(self)
 
         self.changed.emit(wkt_line, width)
 
@@ -70,67 +68,71 @@ class Section(QObject):
 
     def register_projection_layer(self, projection):
         sourceId = projection.source_layer.id()
-        if not sourceId in self.__projection_layers:
-            self.__projection_layers[sourceId] = []
+        if not sourceId in self.__projections:
+            self.__projections[sourceId] = {
+                'needs_update_fn': lambda : self.update_projections(sourceId),
+                'layers': []
+            }
             # setup update logic
-            projection.source_layer.featureAdded.connect(lambda fid: self.update_projections(sourceId))
-            projection.source_layer.editCommandEnded.connect(lambda : self.update_projections(sourceId))
+            projection.source_layer.featureAdded.connect(self.__projections[sourceId]['needs_update_fn'])
+            projection.source_layer.editCommandEnded.connect(self.__projections[sourceId]['needs_update_fn'])
 
-        self.__projection_layers[sourceId] += [projection]
-        self.changed.emit(self.__line.wkt if self.__line else None, self.__width) 
+        self.__projections[sourceId]['layers'] += [projection]
+        self.changed.emit(self.__line.wkt if self.__line else None, self.__width)
 
     def update_projections(self, sourceId):
-        for p in self.__projection_layers[sourceId]:
+        for p in self.__projections[sourceId]['layers']:
             p.apply(self)
 
     def unregister_projected_layer(self, layerId):
-        for sourceId in self.__projection_layers:
-            sourceLayer = self.__projection_layers[sourceId][0].source_layer
+        for sourceId in self.__projections:
+            sourceLayer = QgsMapLayerRegistry.instance().mapLayer(sourceId)
 
             # removal of source layer
             if sourceId == layerId:
-                sourceLayer.featureAdded.disconnect()
-                sourceLayer.editCommandEnded.disconnect()
+                sourceLayer.featureAdded.disconnect(self.__projections[sourceId]['needs_update_fn'])
+                sourceLayer.editCommandEnded.disconnect(self.__projections[sourceId]['needs_update_fn'])
                 projection_removed = []
 
-                for p in self.__projection_layers[sourceId]:
+                for p in self.__projections[sourceId]['layers']:
                     projection_removed += [ p.projected_layer ]
 
-                del self.__projection_layers[sourceId]
+                del self.__projections[sourceId]
                 return projection_removed
 
             else:
-                projections = self.__projection_layers[sourceId]
+                projections = self.__projections[sourceId]['layers']
                 for p in projections:
                     if p.projected_layer.id() == layerId:
                         projection_removed = [ p.projected_layer ]
 
-                        self.__projection_layers[sourceId] = [p for p in projections if p.projected_layer.id() != layerId]
-                        if len(self.__projection_layers[sourceId]) == 0:
-                            sourceLayer.featureAdded.disconnect()
-                            sourceLayer.editCommandEnded.disconnect()
-                            del self.__projection_layers[sourceId]
+                        self.__projections[sourceId]['layers'] = [p for p in projections if p.projected_layer.id() != layerId]
+                        if len(self.__projections[sourceId]['layers']) == 0:
+                            sourceLayer.featureAdded.disconnect(self.__projections[sourceId]['needs_update_fn'])
+                            sourceLayer.editCommandEnded.disconnect(self.__projections[sourceId]['needs_update_fn'])
+                            del self.__projections[sourceId]
 
                         return projection_removed
         return []
 
+    # Maintain section TreeView state
     def __add_layers(self, layers):
         for layer in layers:
-            print "adding layer", layer.name()
             if hasattr(layer, 'customProperty') \
                     and layer.customProperty("section_id") is not None \
                     and layer.customProperty("section_id") == self.__id :
                 source_layer = projected_layer_to_original(layer)
                 if source_layer is not None:
+                    print "add {}/{} to section tree view".format(source_layer.id(), layer.id())
                     self.__layer_tree_root.addLayer(layer)
                     self.register_projection_layer(Layer(source_layer, layer))
 
     def __remove_layers(self, layer_ids):
         for layer_id in layer_ids:
-            print 'remove ', layer_id
             projected_layers = self.unregister_projected_layer(layer_id)
             for p in projected_layers:
-                self.__layer__tree__root.removeLayer(p)
+                print 'remove {}/{} from section tree view'.format(layer_id, p.id())
+                self.__layer_tree_root.removeLayer(p)
 
     def __getattr__(self, name):
         if name == "line":
