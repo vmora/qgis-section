@@ -50,17 +50,52 @@ class Section(QObject):
         self.changed.emit(wkt_line, width)
 
     def project(self, qgs_geometry):
+        return self._transform(qgs_geometry, self.project_point)
+
+    def unproject(self, qgs_geometry):
+        return self._transform(qgs_geometry, self.unproject_point)
+
+    def _transform(self, qgs_geometry, point_transformation):
         """returns a transformed geometry"""
         #@todo use wkb to optimize ?
         geom = loads(qgs_geometry.exportToWkt().replace("Z", " Z"))
         return QgsGeometry.fromWkt(
                 transform(
-                    lambda x,y,z: self.project_point(x, y, z),
+                    lambda x,y,z: point_transformation(x, y, z),
                     geom).wkt)
 
     def project_point(self, x, y, z):
         # project a 3d point
-        return (self.__line.project(Point(x, y)), z, 0)
+        # x/y/z can be scalars or tuples
+        if isinstance(x, tuple):
+            _x = ()
+            _z = tuple([0 for i in range(0, len(x))])
+            for i in range(0, len(x)):
+                _x += (self.__line.project(Point(x[i], y[i])),)
+
+            return (_x, z, _z)
+        else:
+            return (self.__line.project(Point(x, y)), z, 0)
+
+    def unproject_point(self, x, y, z):
+        # 2d -> 3d transfomration
+        # x/y/z can be scalars or tuples
+        if isinstance(x, tuple):
+            _x = ()
+            _y = ()
+            for i in range(0, len(x)):
+                q = self.__line.interpolate(x[i])
+                _x += (q.x, )
+                _y += (q.y, )
+
+            return (_x,
+             _y, y)
+        else:
+            q = self.__line.interpolate(x)
+            print 'unproject_point', x, q
+            return (q.x, q.y, y)
+
+
 
     def register_projection_layer(self, projection):
         sourceId = projection.source_layer.id()
