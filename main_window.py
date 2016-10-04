@@ -49,10 +49,14 @@ class MainWindow(QMainWindow):
         self.__canvas.add_section_actions_to_toolbar(actions, self.__toolbar)
 
     def unload(self):
+        for a in self.__canvas.section_actions:
+            self.__toolbar.removeAction(a['action'])
+
         self.__canvas.unload()
         self.__toolbar.unload()
         self.__section.unload()
 
+        self.__toolbar.line_clicked.disconnect(self.__section.update)
         self.removeToolBar(self.__toolbar)
         self.__canvas = None
         self.__section = None

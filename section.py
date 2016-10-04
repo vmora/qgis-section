@@ -43,6 +43,7 @@ class Section(QObject):
     def unload(self):
         QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers)
         QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers)
+        self.projections = {}
 
     def set_z_scale(self, scale):
         self.__z_scale = scale
@@ -206,7 +207,11 @@ class Section(QObject):
             for p in self.__projections[sourceId]['layers']:
                 if p.projected_layer.id() == layer.id():
                     p.propagateChangesToSourceLayer(self)
-                    return
+
+        # Re-project all layer
+        for sourceId in self.__projections:
+            for p in self.__projections[sourceId]['layers']:
+                p.apply(self)
 
     def __getattr__(self, name):
         if name == "line":
