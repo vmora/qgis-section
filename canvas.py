@@ -57,8 +57,8 @@ class Canvas(QgsMapCanvas):
 
             if 'tool' in action:
                 act.setCheckable(True)
-                tl = action['tool']
-                act.triggered.connect(lambda checked, tool=tl: self._setSectionCanvasTool(checked, tool))
+                act.setData(action['tool'])
+                act.triggered.connect(self._setSectionCanvasTool)
             elif 'clicked' in action:
                 act.setCheckable('layer_state' in action)
                 act.triggered.connect(action['clicked'])
@@ -66,10 +66,11 @@ class Canvas(QgsMapCanvas):
             action['action'] = act
             self.section_actions += [ action ]
 
-    def _setSectionCanvasTool(self, checked, tool):
+    def _setSectionCanvasTool(self, checked):
         if not checked:
             return
 
+        tool = self.sender().data()
         self.setMapTool(tool)
 
         for action in self.section_actions:
