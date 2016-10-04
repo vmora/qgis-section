@@ -19,7 +19,8 @@ class Canvas(QgsMapCanvas):
     def __init__(self, section, iface, parent=None):
         QgsMapCanvas.__init__(self, parent)
         self.setWheelAction(QgsMapCanvas.WheelZoomToMouseCursor)
-        self.setCrsTransformEnabled(False)
+
+        self.setCrsTransformEnabled(True)
 
         self.__iface = iface
         self.__highlighter = None
@@ -136,6 +137,10 @@ class Canvas(QgsMapCanvas):
 
         if self.__highlighter is not None:
             self.__highlighter.setWidth(self.__section.width/self.__iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
+
+    def getCoordinateTransform(self):
+        print "getCoordinateTransform"
+        return QgsMapCanvas.getCoordinateTransform(self)
 
     def __toggle_edit(self, checked):
         #TODO: simplistic implementation. Would be nice to be able to use QgisApp::toggleEditing( QgsMapLayer *layer, bool allowCancel)
