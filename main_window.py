@@ -61,6 +61,8 @@ class MainWindow(QMainWindow):
             return self.__toolbar
         elif name == "tree_view":
             return self.__tree_view
+        elif name == "section":
+            return self.__section
         raise AttributeError(name)
 
 
