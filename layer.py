@@ -6,6 +6,8 @@ from shapely.geometry import Point, LineString
 from shapely.wkt import loads
 from shapely.ops import transform
 
+from .helpers import projected_feature_to_original
+
 def hasZ(layer):
     """test if layer has z, necessary because the wkbType returned by lyers in QGSI 2.16
     has lost the information
@@ -52,3 +54,23 @@ class Layer(object):
         projected.dataProvider().addFeatures(features)
         projected.endEditCommand()
         projected.updateExtents()
+
+    def propagateChangesToSourceLayer(self, section):
+
+        edit = self.projected_layer.editBuffer()
+
+        if edit is None:
+            return
+
+        print "{} will commit changes".format(self.projected_layer.id())
+        self.source_layer.beginEditCommand('unproject transformation')
+
+        print edit.changedGeometries()
+        for i in edit.changedGeometries():
+            modified_feature = self.projected_layer.getFeatures(QgsFeatureRequest(i)).next()
+            feature = projected_feature_to_original(self.source_layer, modified_feature)
+            unprojected = section.unproject(edit.changedGeometries()[i])
+            self.source_layer.dataProvider().changeGeometryValues({feature.id(): unprojected})
+
+        self.source_layer.endEditCommand()
+        self.source_layer.updateExtents()

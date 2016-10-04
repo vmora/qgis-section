@@ -109,6 +109,7 @@ class Section(QObject):
             projection.source_layer.editCommandEnded.connect(self.__projections[sourceId]['needs_update_fn'])
 
         self.__projections[sourceId]['layers'] += [projection]
+        projection.projected_layer.beforeCommitChanges.connect(self.__propagateChangesToSourceLayer)
         self.changed.emit(self.__line.wkt if self.__line else None, self.__width)
 
     def update_projections(self, sourceId):
@@ -126,6 +127,7 @@ class Section(QObject):
                 projection_removed = []
 
                 for p in self.__projections[sourceId]['layers']:
+                    p.projected_layer.beforeCommitChanges.disconnect(self.__propagateChangesToSourceLayer)
                     projection_removed += [ p.projected_layer ]
 
                 del self.__projections[sourceId]
@@ -136,6 +138,7 @@ class Section(QObject):
                 for p in projections:
                     if p.projected_layer.id() == layerId:
                         projection_removed = [ p.projected_layer ]
+                        p.projected_layer.beforeCommitChanges.disconnect(self.__propagateChangesToSourceLayer)
 
                         self.__projections[sourceId]['layers'] = [p for p in projections if p.projected_layer.id() != layerId]
                         if len(self.__projections[sourceId]['layers']) == 0:
@@ -164,6 +167,19 @@ class Section(QObject):
             for p in projected_layers:
                 print 'remove {}/{} from section tree view'.format(layer_id, p.id())
                 self.__layer_tree_root.removeLayer(p)
+
+    def __propagateChangesToSourceLayer(self):
+        layer = self.sender()
+
+        # todo: edition and section lines are tied because we need to unproject
+        if not self.is_valid:
+            return
+
+        for sourceId in self.__projections:
+            for p in self.__projections[sourceId]['layers']:
+                if p.projected_layer.id() == layer.id():
+                    p.propagateChangesToSourceLayer(self)
+                    return
 
     def __getattr__(self, name):
         if name == "line":
