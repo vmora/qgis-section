@@ -33,6 +33,7 @@ class Canvas(QgsMapCanvas):
 
     def unload(self):
         self.__cleanup()
+        self.section_actions = []
 
     def build_default_section_actions(self):
         return [

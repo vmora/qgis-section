@@ -50,8 +50,11 @@ class MainWindow(QMainWindow):
     def unload(self):
         self.__canvas.unload()
         self.__toolbar.unload()
+        self.__section.unload()
 
         self.removeToolBar(self.__toolbar)
+        self.__canvas = None
+        self.__section = None
 
 
     def __getattr__(self, name):

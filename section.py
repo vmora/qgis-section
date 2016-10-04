@@ -37,6 +37,10 @@ class Section(QObject):
         QgsMapLayerRegistry.instance().layersAdded.connect(self.__add_layers)
         QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layers)
 
+    def unload(self):
+        QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers)
+        QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers)
+
     def update(self, wkt_line, width = 0):
         try:
             self.__line = loads(wkt_line.replace("Z", " Z"))
