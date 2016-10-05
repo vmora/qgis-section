@@ -15,6 +15,7 @@ from .section_tools import LineSelectTool
 class Toolbar(QToolBar):
     line_clicked = pyqtSignal(str, float)
     z_autoscale_clicked = pyqtSignal()
+    projected_layer_created = pyqtSignal(QgsVectorLayer, QgsVectorLayer)
 
     def __init__(self, section_id, iface_canvas):
         QToolBar.__init__(self)
@@ -79,6 +80,8 @@ class Toolbar(QToolBar):
         # cpy style
         section.setRendererV2(layer.rendererV2().clone())
         QgsMapLayerRegistry.instance().addMapLayer(section, False)
+
+        self.projected_layer_created.emit(layer, section)
 
     def __add_axis(self):
         axislayer = AxisLayer(self.__iface_canvas.mapSettings().destinationCrs())
