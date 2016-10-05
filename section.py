@@ -21,6 +21,7 @@ class Section(QObject):
         self.__line = None
         self.__id = id_
         self.__width = 0
+        self.__z_scale = 1
         self.__projections = {}
         self.__layer_tree_root = QgsLayerTreeGroup()
         self.__layer_tree_model = QgsLayerTreeModel(self.__layer_tree_root)
@@ -40,6 +41,11 @@ class Section(QObject):
     def unload(self):
         QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers)
         QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers)
+
+    def set_z_scale(self, scale):
+        self.__z_scale = scale
+        for sourceId in self.__projections:
+            self.update_projections(sourceId)
 
     def update(self, wkt_line, width = 0):
         try:
@@ -77,9 +83,9 @@ class Section(QObject):
             for i in range(0, len(x)):
                 _x += (self.__line.project(Point(x[i], y[i])),)
 
-            return (_x, z, _z)
+            return (_x, tuple((v*self.__z_scale for v in z)), _z)
         else:
-            return (self.__line.project(Point(x, y)), z, 0)
+            return (self.__line.project(Point(x, y)), z*self.__z_scale, 0)
 
     def unproject_point(self, x, y, z):
         # 2d -> 3d transfomration
@@ -93,13 +99,11 @@ class Section(QObject):
                 _y += (q.y, )
 
             return (_x,
-             _y, y)
+             _y, tuple((v/self.__z_scale for v in y)))
         else:
             q = self.__line.interpolate(x)
             print 'unproject_point', x, q
-            return (q.x, q.y, y)
-
-
+            return (q.x, q.y, y/self.__z_scale)
 
     def register_projection_layer(self, projection):
         sourceId = projection.source_layer.id()
@@ -196,4 +200,6 @@ class Section(QObject):
             return self.__id
         elif name == "is_valid":
             return self.line is not None
+        elif name == "z_scale":
+            return self.__z_scale
         raise AttributeError(name)

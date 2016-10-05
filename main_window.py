@@ -39,6 +39,7 @@ class MainWindow(QMainWindow):
         self.__tree_view = TreeView(self.__section, self.__canvas)
 
         self.__toolbar.line_clicked.connect(self.__section.update)
+        self.__toolbar.z_autoscale_clicked.connect(self.__canvas.z_autoscale)
 
         self.addToolBar(Qt.TopToolBarArea, self.__toolbar)
         self.setCentralWidget(self.__canvas)

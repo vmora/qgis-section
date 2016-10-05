@@ -14,6 +14,7 @@ from .section_tools import LineSelectTool
 
 class Toolbar(QToolBar):
     line_clicked = pyqtSignal(str, float)
+    z_autoscale_clicked = pyqtSignal()
 
     def __init__(self, section_id, iface_canvas):
         QToolBar.__init__(self)
@@ -33,6 +34,9 @@ class Toolbar(QToolBar):
         self.buffer_width.setMaximumWidth(50)
         self.addWidget(QLabel("Width:"))
         self.addWidget(self.buffer_width)
+
+        self.z_autoscale = self.addAction(icon('autoscale.svg'), 'autoscale')
+        self.z_autoscale.triggered.connect(self.z_autoscale_clicked.emit)
 
         self.__tool = None
         self.__old_tool = None

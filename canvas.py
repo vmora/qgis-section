@@ -78,7 +78,6 @@ class Canvas(QgsMapCanvas):
             if 'tool' in action:
                 action['action'].setChecked(tool == action['tool'])
 
-
     def __cleanup(self):
         if self.__highlighter is not None:
             self.__iface.mapCanvas().scene().removeItem(self.__highlighter)
@@ -102,6 +101,16 @@ class Canvas(QgsMapCanvas):
         z_range = max_z - min_z
         print "z-range", z_range
         self.setExtent(QgsRectangle(0, min_z - z_range * 0.1, self.__section.line.length, max_z + z_range * 0.1))
+        self.refresh()
+
+    def z_autoscale(self, flag=None):
+        ext = self.extent()
+        smin, smax = ext.xMinimum(), ext.xMaximum()
+        zmin, zmax = ext.yMinimum(), ext.yMaximum()
+        aspect_ratio = float(self.height())/self.width()
+        print aspect_ratio, smin, smax
+        self.__section.set_z_scale(self.__section.z_scale*2)
+        self.setExtent(QgsRectangle(smin, zmin*2, smax, zmin*2+(zmax-zmin)))
         self.refresh()
 
     def __extents_changed(self):
@@ -135,6 +144,8 @@ class Canvas(QgsMapCanvas):
         vertices += [line.interpolate(end).asPoint()]
 
         if self.__highlighter is not None:
+            self.__highlighter.reset()
+            self.__highlighter.addGeometry(QgsGeometry.fromPolyline(vertices), None)
             self.__highlighter.setWidth(self.__section.width/self.__iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
 
     def __toggle_edit(self, checked):
