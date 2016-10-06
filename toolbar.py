@@ -49,6 +49,7 @@ class Toolbar(QToolBar):
             self.__bridge = QgsLayerTreeMapCanvasBridge(group, self.__section_canvas)
         else:
             self.__bridge = None
+        print 'CREATE TOOLBAR', self.__bridge
 
     def unload(self):
         self.__iface = None

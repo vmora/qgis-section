@@ -39,11 +39,7 @@ class Canvas(QgsMapCanvas):
         return [
             { 'icon': QgsApplication.getThemeIcon('/mActionPan.svg'), 'label': 'pan', 'tool': QgsMapToolPan(self) },
             { 'icon': QgsApplication.getThemeIcon('/mActionZoomIn.svg'), 'label': 'zoom in', 'tool': QgsMapToolZoom(self, False) },
-            { 'icon': QgsApplication.getThemeIcon('/mActionZoomOut.svg'), 'label': 'zoom out', 'tool': QgsMapToolZoom(self, True) },
-            None,
-            { 'icon': QgsApplication.getThemeIcon('/mActionSelect.svg'), 'label': 'select', 'tool': SelectionTool(self) },
-            { 'icon': QgsApplication.getThemeIcon('/mActionToggleEditing.svg'), 'label': 'toggle edit', 'clicked': self.__toggle_edit, 'layer_state': lambda l: l.isEditable()},
-            { 'icon': QgsApplication.getThemeIcon('/mActionMoveFeature.svg'), 'label': 'move feature', 'tool': MoveFeatureTool(self) },
+            { 'icon': QgsApplication.getThemeIcon('/mActionZoomOut.svg'), 'label': 'zoom out', 'tool': QgsMapToolZoom(self, True) }
         ]
 
     def add_section_actions_to_toolbar(self, actions, toolbar):
@@ -106,7 +102,7 @@ class Canvas(QgsMapCanvas):
         ext = self.extent()
         smin, smax = ext.xMinimum(), ext.xMaximum()
         ztmin, ztmax = self.__section.z_range(smin, smax)
-        print "z range", ztmin, ztmax 
+        print "z range", ztmin, ztmax
         if ztmin == ztmax:
             return
         dzt = ztmax - ztmin
