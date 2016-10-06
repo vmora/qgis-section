@@ -67,10 +67,7 @@ class Toolbar(QToolBar):
         self.__iface_canvas.unsetMapTool(self.__tool)
         self.line_clicked.emit(wkt_, float(self.buffer_width.text()))
         group = self.__iface.layerTreeView().layerTreeModel().rootGroup().findGroup(self.__section_id)
-        if group:
-            self.__bridge = QgsLayerTreeMapCanvasBridge(group, self.__section_canvas)
-        else:
-            self.__bridge = None
+        self.__update_bridge(group)
 
     def __add_layer(self):
         print "add layer"
@@ -96,8 +93,11 @@ class Toolbar(QToolBar):
 
         # cpy style
         section.setRendererV2(layer.rendererV2().clone())
-        QgsMapLayerRegistry.instance().addMapLayer(section, False)
 
+        self._add_layer_to_section_group(section)
+        self.projected_layer_created.emit(layer, section)
+
+    def _add_layer_to_section_group(self, layer):
         # Add to section group
         group = self.__iface.layerTreeView().layerTreeModel().rootGroup().findGroup(self.__section_id)
         if group is None:
@@ -105,16 +105,20 @@ class Toolbar(QToolBar):
             group = self.__iface.layerTreeView().layerTreeModel().rootGroup().addGroup(self.__section_id)
             group.setCustomProperty('section_id', self.__section_id)
 
-        if self.__bridge is None:
+        self.__update_bridge(group)
+
+        assert not(group is None)
+        QgsMapLayerRegistry.instance().addMapLayer(layer, False)
+        group.addLayer(layer)
+
+
+    def __update_bridge(self, group):
+        if self.__bridge is None and group is not None:
             # Create bridge
             self.__bridge = QgsLayerTreeMapCanvasBridge(group, self.__section_canvas)
 
-        assert not(group is None)
-        group.addLayer(section)
-
-        self.projected_layer_created.emit(layer, section)
 
     def __add_axis(self):
-        axislayer = AxisLayer(self.__iface_canvas.mapSettings().destinationCrs())
-        QgsMapLayerRegistry.instance().addMapLayer(axislayer, False)
+        self.axislayer = AxisLayer(self.__iface_canvas.mapSettings().destinationCrs())
+        self._add_layer_to_section_group(self.axislayer)
 

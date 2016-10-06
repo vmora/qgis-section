@@ -1,5 +1,6 @@
 from qgis.core import *
 from .main_window import MainWindow
+from .axis_layer import AxisLayer, AxisLayerType
 
 from PyQt4.QtCore import Qt
 from PyQt4.QtGui import QDockWidget, QAction
@@ -8,6 +9,8 @@ class Plugin():
     def __init__(self, iface):
         self.__iface = iface
         self.__sections = []
+        self.axis_layer_type = AxisLayerType()
+        QgsPluginLayerRegistry.instance().addPluginLayerType(self.axis_layer_type)
 
     def initGui(self):
         self.action = QAction('Add section', None)
@@ -27,6 +30,7 @@ class Plugin():
         self.action.triggered.disconnect()
         self.__iface.removeToolBarIcon(self.action)
         self.__sections = None
+        QgsPluginLayerRegistry.instance().removePluginLayerType(AxisLayer.LAYER_TYPE)
 
     def _legend_added_child(self, node, f, to):
         new_children = node.children()[f:to+1]
