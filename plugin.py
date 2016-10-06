@@ -1,3 +1,4 @@
+from qgis.core import *
 from .main_window import MainWindow
 
 from PyQt4.QtCore import Qt
@@ -13,6 +14,11 @@ class Plugin():
         self.__iface.addToolBarIcon(self.action)
         self.action.triggered.connect(self._add_section)
 
+        # Reload existing section
+        self.__iface.layerTreeView().layerTreeModel().rootGroup().addedChildren.connect(self._legend_added_child)
+        g = self.__iface.layerTreeView().layerTreeModel().rootGroup()
+        self._legend_added_child(g, 0, len(g.children()))
+
     def unload(self):
         for section in self.__sections:
             self.__iface.removeDockWidget(section['dock'])
@@ -20,6 +26,18 @@ class Plugin():
 
         self.action.triggered.disconnect()
         self.__iface.removeToolBarIcon(self.action)
+        self.__sections = None
+
+    def _legend_added_child(self, node, f, to):
+        new_children = node.children()[f:to+1]
+        for node in new_children:
+            if node.nodeType() == QgsLayerTreeNode.NodeGroup and node.customProperty('section_id'):
+                id_ = node.customProperty('section_id')
+                section = filter(lambda s: s['id'] == id_, self.__sections)
+
+                if len(section) == 0:
+                    self.add_section(id_)
+
 
     def _add_section(self):
         self.add_section('section{}'.format(len(self.__sections) + 1))

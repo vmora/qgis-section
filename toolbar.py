@@ -102,6 +102,7 @@ class Toolbar(QToolBar):
         if group is None:
             # Add missing group
             group = self.__iface.layerTreeView().layerTreeModel().rootGroup().addGroup(self.__section_id)
+            group.setCustomProperty('section_id', self.__section_id)
 
         if self.__bridge is None:
             # Create bridge
