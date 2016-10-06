@@ -99,18 +99,26 @@ class Canvas(QgsMapCanvas):
         min_z = min((layer.extent().yMinimum() for layer in self.layers()))
         max_z = max((layer.extent().yMaximum() for layer in self.layers()))
         z_range = max_z - min_z
-        print "z-range", z_range
         self.setExtent(QgsRectangle(0, min_z - z_range * 0.1, self.__section.line.length, max_z + z_range * 0.1))
         self.refresh()
 
     def z_autoscale(self, flag=None):
         ext = self.extent()
         smin, smax = ext.xMinimum(), ext.xMaximum()
+        ztmin, ztmax = self.__section.z_range(smin, smax)
+        print "z range", ztmin, ztmax 
+        if ztmin == ztmax:
+            return
+        dzt = ztmax - ztmin
+
         zmin, zmax = ext.yMinimum(), ext.yMaximum()
-        aspect_ratio = float(self.height())/self.width()
-        print aspect_ratio, smin, smax
-        self.__section.set_z_scale(self.__section.z_scale*2)
-        self.setExtent(QgsRectangle(smin, zmin*2, smax, zmin*2+(zmax-zmin)))
+        print "ext", smin, zmin, smax, zmax
+        dz = zmax - zmin
+        fct = dz/dzt
+        self.__section.set_z_scale(fct)
+        print "new ext", smin, ztmin, smax, ztmax
+        print "scaling by", fct
+        self.setExtent(QgsRectangle(smin, ztmin*fct, smax, ztmax*fct))
         self.refresh()
 
     def __extents_changed(self):

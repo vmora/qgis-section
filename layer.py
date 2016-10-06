@@ -23,6 +23,7 @@ class Layer(object):
         self.source_layer = source_layer
         self.projected_layer = projected_layer
         assert hasZ(source_layer) # @todo remove this and configure attribute for z
+        self.__points = None
 
     def apply(self, section):
         "project source features on section plnae defined by line"
@@ -45,7 +46,6 @@ class Layer(object):
             if Point(centroid.x(), centroid.y()).intersects(buf):
                 geom = feature.geometry()
                 new_feature = QgsFeature(feature.id())
-                p = section.project(geom)
                 new_feature.setGeometry(section.project(geom))
                 new_feature.setAttributes(feature.attributes())
                 features.append(new_feature)

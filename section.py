@@ -11,6 +11,7 @@ from shapely.ops import transform
 
 from .helpers import projected_layer_to_original
 from .layer import Layer
+import numpy
 
 class Section(QObject):
 
@@ -22,6 +23,7 @@ class Section(QObject):
         self.__id = id_
         self.__width = 0
         self.__z_scale = 1
+        self.__points = []
         self.__projections = {}
         self.__layer_tree_root = QgsLayerTreeGroup()
         self.__layer_tree_model = QgsLayerTreeModel(self.__layer_tree_root)
@@ -74,18 +76,34 @@ class Section(QObject):
                     lambda x,y,z: point_transformation(x, y, z),
                     geom).wkt)
 
+    def z_range(self, smin, smax):
+        if not len(self.__points):
+            return 0, 0
+        v = numpy.array(self.__points)
+        print v
+        v_in_range = v[numpy.logical_and(v[:,0]>=smin, v[:,0]<=smax)]
+
+        return (numpy.min(v_in_range[:,1]),  numpy.max(v_in_range[:,1])) if len(v_in_range) else (0, 0)
+
     def project_point(self, x, y, z):
         # project a 3d point
         # x/y/z can be scalars or tuples
         if isinstance(x, tuple):
             _x = ()
-            _z = tuple([0 for i in range(0, len(x))])
+            _y = ()
+            _z = tuple((0 for i in range(0, len(x))))
             for i in range(0, len(x)):
                 _x += (self.__line.project(Point(x[i], y[i])),)
-
-            return (_x, tuple((v*self.__z_scale for v in z)), _z)
+                _y += (z[i]*self.__z_scale,)
+            self.__points += zip(_x, z)
+            print "tuple", _x, _y
+            return (_x, _y, _z)
         else:
-            return (self.__line.project(Point(x, y)), z*self.__z_scale, 0)
+            _x = self.__line.project(Point(x, y))
+            _y = z*self.__z_scale
+            self.__points += [(_x, z)]
+            print "not tuple", _x, _y
+            return (_x, _y, 0)
 
     def unproject_point(self, x, y, z):
         # 2d -> 3d transfomration
@@ -121,6 +139,7 @@ class Section(QObject):
         self.changed.emit(self.__line.wkt if self.__line else None, self.__width)
 
     def update_projections(self, sourceId):
+        self.__points = []
         for p in self.__projections[sourceId]['layers']:
             p.apply(self)
 
