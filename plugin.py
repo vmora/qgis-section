@@ -1,25 +1,34 @@
 from .main_window import MainWindow
 
 from PyQt4.QtCore import Qt
-from PyQt4.QtGui import QDockWidget
+from PyQt4.QtGui import QDockWidget, QAction
 
 class Plugin():
     def __init__(self, iface):
         self.__iface = iface
-        self.__section_main = MainWindow(iface)
-        self.__dock = QDockWidget('Section')
-        self.__dock.setWidget(self.__section_main)
-
-        self.__legend_dock = QDockWidget('Section Legend')
-        self.__legend_dock.setWidget(self.__section_main.tree_view)
+        self.__sections = []
 
     def initGui(self):
-        self.__section_main.add_default_section_buttons()
-        self.__iface.addDockWidget(Qt.BottomDockWidgetArea, self.__dock)
-        self.__iface.addDockWidget(Qt.LeftDockWidgetArea, self.__legend_dock)
+        self.action = QAction('Add section', None)
+        self.__iface.addToolBarIcon(self.action)
+        self.action.triggered.connect(self._add_section)
 
     def unload(self):
-        self.__iface.removeDockWidget(self.__dock)
-        self.__iface.removeDockWidget(self.__legend_dock)
+        for section in self.__sections:
+            self.__iface.removeDockWidget(section['dock'])
+            section['main'].unload()
 
-        self.__section_main.unload()
+        self.action.triggered.disconnect()
+        self.__iface.removeToolBarIcon(self.action)
+
+    def _add_section(self):
+        self.add_section('section{}'.format(len(self.__sections) + 1))
+
+    def add_section(self, id_):
+        main = MainWindow(self.__iface, id_)
+        dock = QDockWidget(id_)
+        dock.setWidget(main)
+        main.add_default_section_buttons()
+        self.__iface.addDockWidget(Qt.BottomDockWidgetArea, dock)
+
+        self.__sections += [ { 'id': id_, 'main': main, 'dock': dock }]

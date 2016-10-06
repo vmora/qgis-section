@@ -15,7 +15,6 @@ from .section import Section
 from .toolbar import Toolbar
 from .canvas import Canvas
 from .axis_layer import AxisLayer, AxisLayerType
-from .tree_view import TreeView
 
 import atexit
 
@@ -28,15 +27,14 @@ def unload_axi_layer_type():
     QgsPluginLayerRegistry.instance().removePluginLayerType(AxisLayer.LAYER_TYPE)
 
 class MainWindow(QMainWindow):
-    def __init__(self, iface, parent=None):
+    def __init__(self, iface, section_id, parent=None):
         QMainWindow.__init__(self, parent)
         self.setWindowFlags(Qt.Widget)
 
         self.__iface = iface
-        self.__section = Section()
+        self.__section = Section(section_id)
         self.__canvas = Canvas(self.__section, iface, self)
-        self.__toolbar = Toolbar(self.__section.id, iface.mapCanvas())
-        self.__tree_view = TreeView(self.__section, self.__canvas)
+        self.__toolbar = Toolbar(iface, self.__section.id, iface.mapCanvas(), self.__canvas)
 
         self.__toolbar.line_clicked.connect(self.__section.update)
         self.__toolbar.z_autoscale_clicked.connect(self.__canvas.z_autoscale)
@@ -67,8 +65,6 @@ class MainWindow(QMainWindow):
             return self.__canvas
         elif name == "toolbar":
             return self.__toolbar
-        elif name == "tree_view":
-            return self.__tree_view
         elif name == "section":
             return self.__section
         raise AttributeError(name)

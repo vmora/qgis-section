@@ -17,9 +17,11 @@ class Toolbar(QToolBar):
     z_autoscale_clicked = pyqtSignal()
     projected_layer_created = pyqtSignal(QgsVectorLayer, QgsVectorLayer)
 
-    def __init__(self, section_id, iface_canvas):
+    def __init__(self, iface, section_id, iface_canvas, section_canvas):
         QToolBar.__init__(self)
+        self.__iface = iface
         self.__iface_canvas = iface_canvas
+        self.__section_canvas = section_canvas
         self.__section_id = section_id
 
         icon = lambda name: QIcon(os.path.join(os.path.dirname(__file__), name))
@@ -29,7 +31,7 @@ class Toolbar(QToolBar):
         self.addAction(icon('add_layer.svg'), 'add projected layer').triggered.connect(self.__add_layer)
         self.selectLineAction = self.addAction(icon('select_line.svg'), 'select line')
         self.selectLineAction.setCheckable(True)
-        self.selectLineAction.triggered.connect(self.__set_section_line)
+        self.selectLineAction.triggered.connect(self.__pick_section_line)
 
         self.buffer_width = QLineEdit("100")
         self.buffer_width.setMaximumWidth(50)
@@ -42,18 +44,32 @@ class Toolbar(QToolBar):
         self.__tool = None
         self.__old_tool = None
 
-        self.__map_tool_changed(iface_canvas.mapTool())
-        iface_canvas.mapToolSet.connect(self.__map_tool_changed)
+        group = self.__iface.layerTreeView().layerTreeModel().rootGroup().findGroup(self.__section_id)
+        if group:
+            self.__bridge = QgsLayerTreeMapCanvasBridge(group, self.__section_canvas)
+        else:
+            self.__bridge = None
 
     def unload(self):
+        self.__iface = None
         if self.__iface_canvas.mapTool() == self.__tool:
             self.__iface_canvas.unsetMapTool(self.__tool)
 
-    def __set_section_line(self):
+    def __pick_section_line(self):
         print "set_section_line"
-        self.__tool = LineSelectTool(self.__iface_canvas)
-        self.__tool.line_clicked.connect(lambda wkt_: self.line_clicked.emit(wkt_, float(self.buffer_width.text())))
-        self.__iface_canvas.setMapTool(self.__tool)
+        if not self.selectLineAction.isChecked():
+            if self.__iface_canvas.mapTool() == self.__tool:
+                self.__iface_canvas.unsetMapTool(self.__tool)
+            self.__tool = None
+        else:
+            self.__tool = LineSelectTool(self.__iface_canvas)
+            self.__tool.line_clicked.connect(self.__line_clicked)
+            self.__iface_canvas.setMapTool(self.__tool)
+
+    def __line_clicked(self, wkt_):
+        self.selectLineAction.setChecked(False)
+        self.__iface_canvas.unsetMapTool(self.__tool)
+        self.line_clicked.emit(wkt_, float(self.buffer_width.text()))
 
     def __add_layer(self):
         print "add layer"
@@ -81,11 +97,22 @@ class Toolbar(QToolBar):
         section.setRendererV2(layer.rendererV2().clone())
         QgsMapLayerRegistry.instance().addMapLayer(section, False)
 
+        # Add to section group
+        group = self.__iface.layerTreeView().layerTreeModel().rootGroup().findGroup(self.__section_id)
+        if group is None:
+            # Add missing group
+            group = self.__iface.layerTreeView().layerTreeModel().rootGroup().addGroup(self.__section_id)
+
+        if self.__bridge is None:
+            # Create bridge
+            self.__bridge = QgsLayerTreeMapCanvasBridge(group, self.__section_canvas)
+
+        assert not(group is None)
+        group.addLayer(section)
+
         self.projected_layer_created.emit(layer, section)
 
     def __add_axis(self):
         axislayer = AxisLayer(self.__iface_canvas.mapSettings().destinationCrs())
         QgsMapLayerRegistry.instance().addMapLayer(axislayer, False)
 
-    def __map_tool_changed(self, map_tool):
-        self.selectLineAction.setChecked(isinstance(map_tool, LineSelectTool))

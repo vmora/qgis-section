@@ -14,7 +14,6 @@ from .layer import Layer
 import numpy
 
 class Section(QObject):
-
     changed = pyqtSignal(str, float)
 
     def __init__(self, id_="section", parent=None):
@@ -25,12 +24,6 @@ class Section(QObject):
         self.__z_scale = 1
         self.__points = []
         self.__projections = {}
-        self.__layer_tree_root = QgsLayerTreeGroup()
-        self.__layer_tree_model = QgsLayerTreeModel(self.__layer_tree_root)
-        self.__layer_tree_model.setFlag(QgsLayerTreeModel.AllowNodeChangeVisibility, True)
-        self.__layer_tree_model.setFlag(QgsLayerTreeModel.AllowLegendChangeState, True)
-        self.__layer_tree_model.setFlag(QgsLayerTreeModel.AllowNodeReorder, True)
-        self.__layer_tree_model.setFlag(QgsLayerTreeModel.AllowNodeRename, True)
 
         # in case of reload, or if a project is already opend with layers
         # that belong to this section
@@ -185,16 +178,11 @@ class Section(QObject):
                     and layer.customProperty("section_id") == self.__id :
                 source_layer = projected_layer_to_original(layer)
                 if source_layer is not None:
-                    print "add {}/{} to section tree view".format(source_layer.id(), layer.id())
-                    self.__layer_tree_root.addLayer(layer)
                     self.register_projection_layer(Layer(source_layer, layer))
 
     def __remove_layers(self, layer_ids):
         for layer_id in layer_ids:
             projected_layers = self.unregister_projected_layer(layer_id)
-            for p in projected_layers:
-                print 'remove {}/{} from section tree view'.format(layer_id, p.id())
-                self.__layer_tree_root.removeLayer(p)
 
     def __propagateChangesToSourceLayer(self):
         layer = self.sender()
@@ -218,8 +206,6 @@ class Section(QObject):
             return self.__line
         elif name == "width":
             return self.__width
-        elif name == "layer_tree_model":
-            return self.__layer_tree_model
         elif name == "id":
             return self.__id
         elif name == "is_valid":
