@@ -43,18 +43,13 @@ class Toolbar(QToolBar):
 
         self.__tool = None
         self.__old_tool = None
-
-        group = self.__iface.layerTreeView().layerTreeModel().rootGroup().findGroup(self.__section_id)
-        if group:
-            self.__bridge = QgsLayerTreeMapCanvasBridge(group, self.__section_canvas)
-        else:
-            self.__bridge = None
-        print 'CREATE TOOLBAR', self.__bridge
+        self.__bridge = None
 
     def unload(self):
         self.__iface = None
         if self.__iface_canvas.mapTool() == self.__tool:
             self.__iface_canvas.unsetMapTool(self.__tool)
+        self.__bridge = None
 
     def __pick_section_line(self):
         print "set_section_line"
@@ -71,6 +66,11 @@ class Toolbar(QToolBar):
         self.selectLineAction.setChecked(False)
         self.__iface_canvas.unsetMapTool(self.__tool)
         self.line_clicked.emit(wkt_, float(self.buffer_width.text()))
+        group = self.__iface.layerTreeView().layerTreeModel().rootGroup().findGroup(self.__section_id)
+        if group:
+            self.__bridge = QgsLayerTreeMapCanvasBridge(group, self.__section_canvas)
+        else:
+            self.__bridge = None
 
     def __add_layer(self):
         print "add layer"
