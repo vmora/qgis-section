@@ -75,7 +75,6 @@ class Section(QObject):
         if not len(self.__points):
             return 0, 0
         v = numpy.array(self.__points)
-        print v
         v_in_range = v[numpy.logical_and(v[:,0]>=smin, v[:,0]<=smax)]
 
         return (numpy.min(v_in_range[:,1]),  numpy.max(v_in_range[:,1])) if len(v_in_range) else (0, 0)
@@ -91,13 +90,11 @@ class Section(QObject):
                 _x += (self.__line.project(Point(x[i], y[i])),)
                 _y += (z[i]*self.__z_scale,)
             self.__points += zip(_x, z)
-            print "tuple", _x, _y
             return (_x, _y, _z)
         else:
             _x = self.__line.project(Point(x, y))
             _y = z*self.__z_scale
             self.__points += [(_x, z)]
-            print "not tuple", _x, _y
             return (_x, _y, 0)
 
     def unproject_point(self, x, y, z):
