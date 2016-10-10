@@ -29,9 +29,11 @@ class Canvas(QgsMapCanvas):
 
         self.extentsChanged.connect(self.__extents_changed)
         iface.mapCanvas().extentsChanged.connect(self.__extents_changed)
+        self.__iface.layerTreeView().currentLayerChanged.connect(self.setCurrentLayer)
         self.currentLayerChanged.connect(self.__update_layer_action_states)
 
     def unload(self):
+        self.__iface.layerTreeView().currentLayerChanged.disconnect(self.setCurrentLayer)
         self.__cleanup()
         self.section_actions = []
 
