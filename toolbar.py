@@ -63,11 +63,12 @@ class Toolbar(QToolBar):
             self.__iface_canvas.setMapTool(self.__tool)
 
     def __line_clicked(self, wkt_):
+        group = self.__iface.layerTreeView().layerTreeModel().rootGroup().findGroup(self.__section_id)
+        self.__update_bridge(group)
+
         self.selectLineAction.setChecked(False)
         self.__iface_canvas.unsetMapTool(self.__tool)
         self.line_clicked.emit(wkt_, float(self.buffer_width.text()))
-        group = self.__iface.layerTreeView().layerTreeModel().rootGroup().findGroup(self.__section_id)
-        self.__update_bridge(group)
 
     def __add_layer(self):
         print "add layer"
