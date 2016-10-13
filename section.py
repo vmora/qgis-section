@@ -239,7 +239,9 @@ class Section(QObject):
                     and layer.customProperty("section_id") == self.__id :
                 source_layer = projected_layer_to_original(layer)
                 if source_layer is not None:
-                    self.register_projection_layer(Layer(source_layer, layer))
+                    l = Layer(source_layer, layer)
+                    self.register_projection_layer(l)
+                    l.apply(self)
 
     def __remove_layers(self, layer_ids):
         for layer_id in layer_ids:
