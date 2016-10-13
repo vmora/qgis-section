@@ -4,8 +4,8 @@ from qgis.core import *
 from qgis.gui import *
 
 
-def projected_layer_to_original(layer):
-    return None if layer is None else QgsMapLayerRegistry.instance().mapLayer(layer.customProperty("projected_layer"))
+def projected_layer_to_original(layer, custom_property="projected_layer"):
+    return None if layer is None else QgsMapLayerRegistry.instance().mapLayer(layer.customProperty(custom_property))
 
 def projected_feature_to_original(source_layer, feature):
     # needed so we can use attribute(name)
