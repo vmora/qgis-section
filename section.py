@@ -12,7 +12,6 @@ from shapely.ops import transform
 from .helpers import projected_layer_to_original, projected_feature_to_original
 from .layer import Layer
 import numpy
-from operator import xor
 
 class Section(QObject):
     changed = pyqtSignal(str, float)
@@ -178,16 +177,16 @@ class Section(QObject):
         source = self.sender()
 
         if source.id() in self.__projections:
-            self.__synchronize_selection_source_proj(source, [l.projected_layer for l in self.__projections[source.id()]['layers']])
+            self.__synchronize_selection_source_proj(source, self.__projections[source.id()]['layers'])
         else:
             for s_id in self.__projections:
                 for layer in self.__projections[s_id]['layers']:
                     if layer.projected_layer.id() == source.id():
-                        self.__synchronize_selection_proj_source(layer.projected_layer, layer.source_layer)
+                        layer.synchronize_selection_proj_to_source()
                         return
 
 
-    def __synchronize_selection_source_proj(self, layer_from, layers_to):
+    def __synchronize_selection_source_proj(self, layers):
         # sync selected items from layer_from in [layers_to]
         def ids_to_filter(ids):
             i = []
@@ -195,41 +194,10 @@ class Section(QObject):
                 i += [str(id_)]
             return i
 
-        selected_ids = [f.attribute('id') for f in layer_from.selectedFeatures()]
-        for layer in layers_to:
-            if len(selected_ids) == 0:
-                continue
+        selected_ids = [f.attribute('id') for f in layer.source_layer.selectedFeatures()]
 
-            query = u"attribute($currentfeature, 'id') in ({})".format(','.join(ids_to_filter(selected_ids)))
-            # 2.16 layer.projected_layer.selectByExpression("attribute($currentfeature, query))
-
-            features = layer.getFeatures(QgsFeatureRequest().setFilterExpression(query))
-            ids = [f.id() for f in features]
-            # Change selection in one call to no cause infinite ping-pong
-            layer.modifySelection(ids, layer.selectedFeaturesIds())
-
-    def __synchronize_selection_proj_source(self, layer_from, layer_source):
-        # sync selected items from layer_from in [layers_to]
-        selected_ids = layer_from.selectedFeaturesIds()
-        source_selected_ids = layer_source.selectedFeaturesIds()
-
-        select = []
-        deselect = []
-
-        for f in layer_from.getFeatures():
-            g = projected_feature_to_original(layer_source, f)
-
-            is_selected_in_proj   = f.id() in selected_ids
-            is_selected_in_source = g.id() in source_selected_ids
-
-            if xor(is_selected_in_proj, is_selected_in_source):
-                if is_selected_in_proj:
-                    select += [g.id()]
-                else:
-                    deselect += [g.id()]
-
-        if len(select) > 0 or len(deselect) > 0:
-            layer_source.modifySelection(select, deselect)
+        for layer in layers:
+            layer.synchronize_selection_source_to_proj(selected_ids)
 
     # Maintain section TreeView state
     def __add_layers(self, layers):
@@ -263,6 +231,9 @@ class Section(QObject):
         for sourceId in self.__projections:
             for p in self.__projections[sourceId]['layers']:
                 p.apply(self)
+
+    def projections_of(self, layer_id):
+        return self.__projections[layer_id]['layers'] if layer_id in self.__projections else []
 
     def __getattr__(self, name):
         if name == "line":

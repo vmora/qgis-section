@@ -12,8 +12,13 @@ def projected_feature_to_original(source_layer, feature):
     feature.setFields(source_layer.fields(), False)
     source_id = feature.attribute("id")
 
-    it = source_layer.getFeatures(
-            QgsFeatureRequest().setFilterExpression ( u'"id" = {0}'.format(source_id)))
-    return it.next()
+    try:
+        it = source_layer.getFeatures(
+                QgsFeatureRequest().setFilterExpression ( u'"id" = {0}'.format(source_id)))
+        return it.next()
+    except Exception as e:
+        print e
+        print 'Failed to lookup id {} in layer {}'.format(source_id, source_layer.id())
+        return None
 
 

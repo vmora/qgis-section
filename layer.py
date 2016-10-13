@@ -7,6 +7,7 @@ from shapely.wkt import loads
 from shapely.ops import transform
 
 from .helpers import projected_feature_to_original
+from operator import xor
 
 def hasZ(layer):
     """test if layer has z, necessary because the wkbType returned by lyers in QGSI 2.16
@@ -74,3 +75,43 @@ class Layer(object):
 
         self.source_layer.endEditCommand()
         self.source_layer.updateExtents()
+
+    def synchronize_selection_source_to_proj(self, selected_ids):
+        if len(selected_ids) == 0:
+            self.projected_layer.removeSelection()
+        else:
+            query = u"attribute($currentfeature, 'id') in ({})".format(','.join(ids_to_filter(selected_ids)))
+            # 2.16 layer.projected_layer.selectByExpression("attribute($currentfeature, query))
+
+            features = self.projected_layer.getFeatures(QgsFeatureRequest().setFilterExpression(query))
+            selected_ids = [f.id() for f in features]
+            deselected_ids = filter(lambda i: not(i in selected_ids), self.projected_layer.selectedFeaturesIds())
+            # Change selection in one call to no cause infinite ping-pong
+            self.projected_layer.modifySelection(ids, deselected_ids)
+
+    def synchronize_selection_proj_to_source(self):
+        # sync selected items from layer_from in [layers_to]
+        selected_ids = self.projected_layer.selectedFeaturesIds()
+        source_selected_ids = self.source_layer.selectedFeaturesIds()
+
+        select = []
+        deselect = []
+
+        print 'synchronize_selection_proj_to_source'
+        for f in self.projected_layer.getFeatures():
+            print f
+            print f.id(), f.attributes()
+            g = projected_feature_to_original(self.source_layer, f)
+
+            is_selected_in_proj   = f.id() in selected_ids
+            is_selected_in_source = g.id() in source_selected_ids
+
+            if xor(is_selected_in_proj, is_selected_in_source):
+                if is_selected_in_proj:
+                    select += [g.id()]
+                else:
+                    deselect += [g.id()]
+
+        if len(select) > 0 or len(deselect) > 0:
+            self.source_layer.modifySelection(select, deselect)
+
