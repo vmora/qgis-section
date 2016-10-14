@@ -177,7 +177,7 @@ class Section(QObject):
         source = self.sender()
 
         if source.id() in self.__projections:
-            self.__synchronize_selection_source_proj(source, self.__projections[source.id()]['layers'])
+            self.__synchronize_selection_source_proj(self.__projections[source.id()])
         else:
             for s_id in self.__projections:
                 for layer in self.__projections[s_id]['layers']:
@@ -186,17 +186,16 @@ class Section(QObject):
                         return
 
 
-    def __synchronize_selection_source_proj(self, layers):
+    def __synchronize_selection_source_proj(self, l):
         # sync selected items from layer_from in [layers_to]
-        def ids_to_filter(ids):
-            i = []
-            for id_ in ids:
-                i += [str(id_)]
-            return i
+        if len(l['layers']) == 0:
+            return
 
-        selected_ids = [f.attribute('id') for f in layer.source_layer.selectedFeatures()]
+        source_layer = l['layers'][0].source_layer
 
-        for layer in layers:
+        selected_ids = [f.attribute('id') for f in source_layer.selectedFeatures()]
+
+        for layer in l['layers']:
             layer.synchronize_selection_source_to_proj(selected_ids)
 
     # Maintain section TreeView state

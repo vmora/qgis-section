@@ -77,17 +77,24 @@ class Layer(object):
         self.source_layer.updateExtents()
 
     def synchronize_selection_source_to_proj(self, selected_ids):
+        def ids_to_filter(ids):
+            i = []
+            for id_ in ids:
+                i += [str(id_)]
+            return i
+
+        print 'synchronize_selection_source_to_proj {}'.format(len(selected_ids))
         if len(selected_ids) == 0:
             self.projected_layer.removeSelection()
         else:
-            query = u"attribute($currentfeature, 'id') in ({})".format(','.join(ids_to_filter(selected_ids)))
+            query = u"attribute($currentfeature, 'id') in ({}) OR attribute($currentfeature, 'id:Integer64(10,0)') in ({})".format(','.join(ids_to_filter(selected_ids)), ','.join(ids_to_filter(selected_ids)))
             # 2.16 layer.projected_layer.selectByExpression("attribute($currentfeature, query))
 
             features = self.projected_layer.getFeatures(QgsFeatureRequest().setFilterExpression(query))
             selected_ids = [f.id() for f in features]
             deselected_ids = filter(lambda i: not(i in selected_ids), self.projected_layer.selectedFeaturesIds())
             # Change selection in one call to no cause infinite ping-pong
-            self.projected_layer.modifySelection(ids, deselected_ids)
+            self.projected_layer.modifySelection(selected_ids, deselected_ids)
 
     def synchronize_selection_proj_to_source(self):
         # sync selected items from layer_from in [layers_to]
@@ -97,10 +104,7 @@ class Layer(object):
         select = []
         deselect = []
 
-        print 'synchronize_selection_proj_to_source'
         for f in self.projected_layer.getFeatures():
-            print f
-            print f.id(), f.attributes()
             g = projected_feature_to_original(self.source_layer, f)
 
             is_selected_in_proj   = f.id() in selected_ids
@@ -112,6 +116,7 @@ class Layer(object):
                 else:
                     deselect += [g.id()]
 
+        print 'synchronize_selection_proj_to_source [{}] -> [{}, {}]'.format(len(selected_ids), len(select), len(deselect))
         if len(select) > 0 or len(deselect) > 0:
             self.source_layer.modifySelection(select, deselect)
 

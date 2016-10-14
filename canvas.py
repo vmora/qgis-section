@@ -184,7 +184,9 @@ class Canvas(QgsMapCanvas):
 
 
     def __update_layer_action_states(self):
+
         currentLayer = self.currentLayer()
+        print '__update_layer_action_states', currentLayer
 
         for action in self.section_actions:
             if 'layer_state' in action:
