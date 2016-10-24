@@ -10,6 +10,7 @@ from .layer import Layer
 from .toolbar import Toolbar, LineSelectTool
 
 from .section_tools import SelectionTool, MoveFeatureTool
+from .action_state_helper import ActionStateHelper
 
 from math import sqrt
 
@@ -64,6 +65,11 @@ class Canvas(QgsMapCanvas):
 
             action['action'] = act
             self.section_actions += [ action ]
+
+            if 'precondition' in action:
+                h = ActionStateHelper(act)
+                h.add_is_enabled_test(action['precondition'])
+                h.update_state()
 
     def _setSectionCanvasTool(self, checked):
         if not checked:

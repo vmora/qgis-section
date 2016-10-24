@@ -15,6 +15,9 @@ def hasZ(layer):
 
     note: we return True for a layer with no geometries
     """
+
+    if not layer.isSpatial():
+        return False
     for feat in layer.getFeatures():
         return QgsWKBTypes.hasZ(int(feat.geometry().wkbType()))
     return True

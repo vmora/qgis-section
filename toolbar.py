@@ -11,6 +11,10 @@ import os
 
 from .axis_layer import AxisLayer
 from .section_tools import LineSelectTool
+from .helpers import is_layer_projected_in_section
+from .layer import hasZ
+from .action_state_helper import ActionStateHelper
+
 
 class Toolbar(QToolBar):
     line_clicked = pyqtSignal(str, float)
@@ -28,7 +32,16 @@ class Toolbar(QToolBar):
 
         self.addAction('axis').triggered.connect(self.__add_axis)
 
-        self.addAction(icon('add_layer.svg'), 'add projected layer').triggered.connect(self.__add_layer)
+
+        add_projected_layer_action = self.addAction(icon('add_layer.svg'), 'add projected layer')
+        add_projected_layer_action.triggered.connect(self.__add_layer)
+        h = ActionStateHelper(add_projected_layer_action)
+        h.add_is_enabled_test(lambda action: (not iface.mapCanvas().currentLayer() is None, "Select layer to project"))
+        h.add_is_enabled_test(lambda action: (iface.mapCanvas().currentLayer().customProperty("section_id") is None, "Select layer is a projection"))
+        h.add_is_enabled_test(lambda action: (not is_layer_projected_in_section(iface.mapCanvas().currentLayer().id(), self.__section_id), "Layer is already projected"))
+        h.add_is_enabled_test(lambda action: (hasZ(iface.mapCanvas().currentLayer()), "Selected layer doens't have XYZ geom"))
+
+
         self.selectLineAction = self.addAction(icon('select_line.svg'), 'select line')
         self.selectLineAction.setCheckable(True)
         self.selectLineAction.triggered.connect(self.__pick_section_line)
@@ -69,6 +82,7 @@ class Toolbar(QToolBar):
         self.selectLineAction.setChecked(False)
         self.__iface_canvas.unsetMapTool(self.__tool)
         self.line_clicked.emit(wkt_, float(self.buffer_width.text()))
+        ActionStateHelper.update_all()
 
     def __add_layer(self):
         print "add layer"

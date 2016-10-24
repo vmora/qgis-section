@@ -15,6 +15,7 @@ from .section import Section
 from .toolbar import Toolbar
 from .canvas import Canvas
 from .axis_layer import AxisLayer, AxisLayerType
+from .action_state_helper import ActionStateHelper
 
 import atexit
 
@@ -35,6 +36,7 @@ class MainWindow(QMainWindow):
         self.__section = Section(section_id)
         self.__canvas = Canvas(self.__section, iface, self)
         self.__toolbar = Toolbar(iface, self.__section.id, iface.mapCanvas(), self.__canvas)
+        self.__toolbar.buffer_width.setText(str(10))
 
         self.__toolbar.line_clicked.connect(self.__section.update)
         self.__toolbar.z_autoscale_clicked.connect(self.__canvas.z_autoscale)
@@ -42,11 +44,18 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, self.__toolbar)
         self.setCentralWidget(self.__canvas)
 
+        print 'HELLO'
+        ActionStateHelper.update_all()
+        self.__iface.layerTreeView().currentLayerChanged.connect(ActionStateHelper.update_all)
+
     def add_default_section_buttons(self):
         actions = self.__canvas.build_default_section_actions()
         self.__canvas.add_section_actions_to_toolbar(actions, self.__toolbar)
 
     def unload(self):
+        self.__iface.layerTreeView().currentLayerChanged.disconnect(ActionStateHelper.update_all)
+        ActionStateHelper.remove_all()
+
         for a in self.__canvas.section_actions:
             self.__toolbar.removeAction(a['action'])
 
