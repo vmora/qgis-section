@@ -157,7 +157,6 @@ class Canvas(QgsMapCanvas):
 
         if self.__highlighter is not None:
             self.__highlighter.reset()
-            print len(vertices)
             self.__highlighter.addGeometry(QgsGeometry.fromPolyline(vertices), None)
             self.__highlighter.setWidth(self.__section.width/self.__iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel())
 
