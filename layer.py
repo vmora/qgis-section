@@ -28,6 +28,7 @@ class Layer(object):
         self.projected_layer = projected_layer
         assert hasZ(source_layer) # @todo remove this and configure attribute for z
         self.__points = None
+        self.skip_selection_signal = False
 
     def apply(self, section):
         "project source features on section plnae defined by line"
@@ -86,7 +87,12 @@ class Layer(object):
                 i += [str(id_)]
             return i
 
-        print 'synchronize_selection_source_to_proj {}'.format(len(selected_ids))
+        if self.skip_selection_signal:
+            return
+
+        self.skip_selection_signal = True
+
+        print '>>> synchronize_selection_source_to_proj {}'.format(len(selected_ids))
         if len(selected_ids) == 0:
             self.projected_layer.removeSelection()
         else:
@@ -99,7 +105,15 @@ class Layer(object):
             # Change selection in one call to no cause infinite ping-pong
             self.projected_layer.modifySelection(selected_ids, deselected_ids)
 
+        print '<<< synchronize_selection_source_to_proj {}'.format(len(selected_ids))
+        self.skip_selection_signal = False
+
     def synchronize_selection_proj_to_source(self):
+        if self.skip_selection_signal:
+            return
+
+        self.skip_selection_signal = True
+
         # sync selected items from layer_from in [layers_to]
         selected_ids = self.projected_layer.selectedFeaturesIds()
         source_selected_ids = self.source_layer.selectedFeaturesIds()
@@ -119,7 +133,10 @@ class Layer(object):
                 else:
                     deselect += [g.id()]
 
-        print 'synchronize_selection_proj_to_source [{}] -> [{}, {}]'.format(len(selected_ids), len(select), len(deselect))
+        print '>>> synchronize_selection_proj_to_source [{}] -> [{}, {}]'.format(len(selected_ids), len(select), len(deselect))
         if len(select) > 0 or len(deselect) > 0:
             self.source_layer.modifySelection(select, deselect)
+        print '<<< synchronize_selection_proj_to_source [{}] -> [{}, {}]'.format(len(selected_ids), len(select), len(deselect))
+
+        self.skip_selection_signal = False
 
