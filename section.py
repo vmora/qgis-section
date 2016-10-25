@@ -15,6 +15,7 @@ import numpy
 
 class Section(QObject):
     changed = pyqtSignal(str, float)
+    # section_layer_modified = pyqtSignal(Layer)
 
     def __init__(self, id_="section", parent=None):
         QObject.__init__(self, parent)
@@ -34,6 +35,7 @@ class Section(QObject):
         QgsMapLayerRegistry.instance().layersWillBeRemoved.connect(self.__remove_layers)
 
     def unload(self):
+        self.__remove_layers(self.__projections.keys())
         QgsMapLayerRegistry.instance().layersAdded.disconnect(self.__add_layers)
         QgsMapLayerRegistry.instance().layersWillBeRemoved.disconnect(self.__remove_layers)
         self.projections = {}
@@ -225,6 +227,8 @@ class Section(QObject):
             for p in self.__projections[sourceId]['layers']:
                 if p.projected_layer.id() == layer.id():
                     p.propagateChangesToSourceLayer(self)
+                    # self.section_layer_modified.emit(p)
+
 
         # Re-project all layer
         for sourceId in self.__projections:
