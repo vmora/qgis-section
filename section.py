@@ -177,7 +177,7 @@ class Section(QObject):
         source = self.sender()
 
         if source.id() in self.__projections:
-            self.__synchronize_selection_source_proj(self.__projections[source.id()])
+            self.__synchronize_selection_source_proj(self.__projections[source.id()], selected, deselected)
         else:
             for s_id in self.__projections:
                 for layer in self.__projections[s_id]['layers']:
@@ -186,7 +186,7 @@ class Section(QObject):
                         return
 
 
-    def __synchronize_selection_source_proj(self, l):
+    def __synchronize_selection_source_proj(self, l, selected, deselected):
         # sync selected items from layer_from in [layers_to]
         if len(l['layers']) == 0:
             return
