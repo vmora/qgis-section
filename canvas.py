@@ -53,7 +53,7 @@ class Canvas(QgsMapCanvas):
                 toolbar.addSeparator()
                 continue
 
-            act = toolbar.addAction(action['icon'], action['label'])
+            act = toolbar.addAction(action['icon'], action['label']) if 'icon' in action else toolbar.addAction(action['label'])
 
             if 'tool' in action:
                 act.setCheckable(True)
