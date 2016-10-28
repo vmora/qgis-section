@@ -10,6 +10,7 @@ class ActionStateHelper():
 
     def add_is_enabled_test(self, l):
         self.enabled_test += [l]
+        return self
 
     def update_state(self):
         for test in self.enabled_test:
