@@ -127,7 +127,7 @@ class Section(QObject):
             # setup update logic
             projection.source_layer.featureAdded.connect(self.__projections[sourceId]['needs_update_fn'])
             projection.source_layer.editCommandEnded.connect(self.__projections[sourceId]['needs_update_fn'])
-            projection.source_layer.editCommandEnded.connect(self.__request_canvas_redraw)
+            projection.source_layer.editCommandEnded.connect(self.request_canvas_redraw)
             projection.source_layer.selectionChanged.connect(self.__synchronize_selection)
 
         self.__projections[sourceId]['layers'] += [projection]
@@ -148,7 +148,7 @@ class Section(QObject):
             if sourceId == layerId:
                 sourceLayer.featureAdded.disconnect(self.__projections[sourceId]['needs_update_fn'])
                 sourceLayer.editCommandEnded.disconnect(self.__projections[sourceId]['needs_update_fn'])
-                sourceLayer.editCommandEnded.disconnect(self.__request_canvas_redraw)
+                sourceLayer.editCommandEnded.disconnect(self.request_canvas_redraw)
                 sourceLayer.selectionChanged.disconnect(self.__synchronize_selection)
                 projection_removed = []
 
@@ -238,9 +238,9 @@ class Section(QObject):
             for p in self.__projections[sourceId]['layers']:
                 p.apply(self, True)
 
-        self.__request_canvas_redraw()
+        self.request_canvas_redraw()
 
-    def __request_canvas_redraw(self):
+    def request_canvas_redraw(self):
         self.needs_redraw.emit()
 
     def projections_of(self, layer_id):
