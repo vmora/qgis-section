@@ -71,7 +71,8 @@ class MainWindow(QMainWindow):
 
     def __refresh_canvas(self):
         self.__canvas.refresh()
-        self.__iface.mapCanvas().refresh()
+        # For some reason refresh() is not enough
+        self.__iface.mapCanvas().refreshAllLayers ()
 
     def __getattr__(self, name):
         if name == "canvas":
