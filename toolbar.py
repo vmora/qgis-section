@@ -18,7 +18,7 @@ from .action_state_helper import ActionStateHelper
 
 class Toolbar(QToolBar):
     line_clicked = pyqtSignal(str, float)
-    z_autoscale_clicked = pyqtSignal()
+    z_autoscale_toggled = pyqtSignal(bool)
     projected_layer_created = pyqtSignal(QgsVectorLayer, QgsVectorLayer)
 
     def __init__(self, iface, section_id, iface_canvas, section_canvas):
@@ -52,7 +52,8 @@ class Toolbar(QToolBar):
         self.addWidget(self.buffer_width)
 
         self.z_autoscale = self.addAction(icon('autoscale.svg'), 'autoscale')
-        self.z_autoscale.triggered.connect(self.z_autoscale_clicked.emit)
+        self.z_autoscale.setCheckable(True)
+        self.z_autoscale.toggled.connect(self.z_autoscale_toggled.emit)
 
         self.__tool = None
         self.__old_tool = None

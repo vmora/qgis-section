@@ -39,7 +39,7 @@ class MainWindow(QMainWindow):
         self.__toolbar.buffer_width.setText(str(10))
 
         self.__toolbar.line_clicked.connect(self.__section.update)
-        self.__toolbar.z_autoscale_clicked.connect(self.__canvas.z_autoscale)
+        self.__toolbar.z_autoscale_toggled.connect(self.__canvas.z_autoscale)
 
         self.addToolBar(Qt.TopToolBarArea, self.__toolbar)
         self.setCentralWidget(self.__canvas)
