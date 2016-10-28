@@ -30,11 +30,13 @@ class Layer(object):
         self.__points = None
         self.skip_selection_signal = False
 
-    def apply(self, section):
+    def apply(self, section, remove_all):
         "project source features on section plnae defined by line"
 
         projected = self.projected_layer
-        projected.dataProvider().deleteFeatures(projected.allFeatureIds())
+
+        if remove_all:
+            projected.dataProvider().deleteFeatures(projected.allFeatureIds())
 
         if not section.is_valid:
             return None
@@ -70,7 +72,6 @@ class Layer(object):
         print "{} will commit changes".format(self.projected_layer.id())
         self.source_layer.beginEditCommand('unproject transformation')
 
-        print edit.changedGeometries()
         for i in edit.changedGeometries():
             modified_feature = self.projected_layer.getFeatures(QgsFeatureRequest(i)).next()
             feature = projected_feature_to_original(self.source_layer, modified_feature)

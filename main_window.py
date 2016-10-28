@@ -44,15 +44,16 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, self.__toolbar)
         self.setCentralWidget(self.__canvas)
 
-        print 'HELLO'
         ActionStateHelper.update_all()
         self.__iface.layerTreeView().currentLayerChanged.connect(ActionStateHelper.update_all)
+        self.__section.needs_redraw.connect(self.__refresh_canvas)
 
     def add_default_section_buttons(self):
         actions = self.__canvas.build_default_section_actions()
         self.__canvas.add_section_actions_to_toolbar(actions, self.__toolbar)
 
     def unload(self):
+        self.__section.needs_redraw.disconnect(self.__refresh_canvas)
         self.__iface.layerTreeView().currentLayerChanged.disconnect(ActionStateHelper.update_all)
         ActionStateHelper.remove_all()
 
@@ -68,6 +69,9 @@ class MainWindow(QMainWindow):
         self.__canvas = None
         self.__section = None
 
+    def __refresh_canvas(self):
+        self.__canvas.refresh()
+        self.__iface.mapCanvas().refresh()
 
     def __getattr__(self, name):
         if name == "canvas":

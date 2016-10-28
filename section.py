@@ -15,6 +15,7 @@ import numpy
 
 class Section(QObject):
     changed = pyqtSignal(str, float)
+    needs_redraw = pyqtSignal()
     # section_layer_modified = pyqtSignal(Layer)
 
     def __init__(self, id_="section", parent=None):
@@ -126,6 +127,7 @@ class Section(QObject):
             # setup update logic
             projection.source_layer.featureAdded.connect(self.__projections[sourceId]['needs_update_fn'])
             projection.source_layer.editCommandEnded.connect(self.__projections[sourceId]['needs_update_fn'])
+            projection.source_layer.editCommandEnded.connect(self.__request_canvas_redraw)
             projection.source_layer.selectionChanged.connect(self.__synchronize_selection)
 
         self.__projections[sourceId]['layers'] += [projection]
@@ -136,7 +138,7 @@ class Section(QObject):
     def update_projections(self, sourceId):
         self.__points = []
         for p in self.__projections[sourceId]['layers']:
-            p.apply(self)
+            p.apply(self, True)
 
     def unregister_projected_layer(self, layerId):
         for sourceId in self.__projections:
@@ -146,6 +148,7 @@ class Section(QObject):
             if sourceId == layerId:
                 sourceLayer.featureAdded.disconnect(self.__projections[sourceId]['needs_update_fn'])
                 sourceLayer.editCommandEnded.disconnect(self.__projections[sourceId]['needs_update_fn'])
+                sourceLayer.editCommandEnded.disconnect(self.__request_canvas_redraw)
                 sourceLayer.selectionChanged.disconnect(self.__synchronize_selection)
                 projection_removed = []
 
@@ -210,7 +213,7 @@ class Section(QObject):
                 if source_layer is not None:
                     l = Layer(source_layer, layer)
                     self.register_projection_layer(l)
-                    l.apply(self)
+                    l.apply(self, True)
 
     def __remove_layers(self, layer_ids):
         for layer_id in layer_ids:
@@ -233,7 +236,12 @@ class Section(QObject):
         # Re-project all layer
         for sourceId in self.__projections:
             for p in self.__projections[sourceId]['layers']:
-                p.apply(self)
+                p.apply(self, True)
+
+        self.__request_canvas_redraw()
+
+    def __request_canvas_redraw(self):
+        self.needs_redraw.emit()
 
     def projections_of(self, layer_id):
         return self.__projections[layer_id]['layers'] if layer_id in self.__projections else []
