@@ -24,7 +24,6 @@ QgsPluginLayerRegistry.instance().addPluginLayerType(AXIS_LAYER_TYPE)
 
 @atexit.register
 def unload_axi_layer_type():
-    print "unload_axi_layer_type"
     QgsPluginLayerRegistry.instance().removePluginLayerType(AxisLayer.LAYER_TYPE)
 
 class MainWindow(QMainWindow):
