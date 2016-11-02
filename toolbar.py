@@ -28,7 +28,7 @@ class Toolbar(QToolBar):
         self.__section_canvas = section_canvas
         self.__section_id = section_id
 
-        icon = lambda name: QIcon(os.path.join(os.path.dirname(__file__), name))
+        icon = lambda name: QIcon(os.path.join(os.path.dirname(__file__), 'icons', name))
 
         self.addAction('axis').triggered.connect(self.__add_axis)
 
