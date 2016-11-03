@@ -8,6 +8,7 @@ from PyQt4.QtGui import QImage, QApplication
 
 import os
 import traceback
+import logging
 
 class AxisLayerType(QgsPluginLayerType):
     def __init__(self):
@@ -38,10 +39,10 @@ class AxisLayer(QgsPluginLayer):
         return QgsRectangle(-1,-1, 1, 1)
 
     def __print(self, msg):
-        print msg
+        logging.info(msg)
 
     def __raise(self, err):
-        print err
+        logging.error(err)
         raise Exception(err)
 
     def draw(self, rendererContext):

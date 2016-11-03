@@ -8,6 +8,7 @@ from PyQt4.QtGui import QToolBar, QLineEdit, QLabel, QIcon
 
 from shapely.geometry import LineString
 import os
+import logging
 
 from .axis_layer import AxisLayer
 from .section_tools import LineSelectTool
@@ -66,7 +67,7 @@ class Toolbar(QToolBar):
         self.__bridge = None
 
     def __pick_section_line(self):
-        print "set_section_line"
+        logging.debug('set_section_line')
         if not self.selectLineAction.isChecked():
             if self.__iface_canvas.mapTool() == self.__tool:
                 self.__iface_canvas.unsetMapTool(self.__tool)
@@ -86,7 +87,7 @@ class Toolbar(QToolBar):
         ActionStateHelper.update_all()
 
     def __add_layer(self):
-        print "add layer"
+        logging.debug('add layer')
         layer = self.__iface_canvas.currentLayer()
 
         if layer is None:

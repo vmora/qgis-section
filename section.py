@@ -114,7 +114,6 @@ class Section(QObject):
              _y, tuple((v/self.__z_scale for v in y)))
         else:
             q = self.__line.interpolate(x)
-            print 'unproject_point', x, q
             return (q.x, q.y, y/self.__z_scale)
 
     def register_projection_layer(self, projection):

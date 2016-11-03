@@ -8,7 +8,7 @@ from PyQt4.QtGui import QApplication, QColor
 
 from .helpers import projected_layer_to_original, projected_feature_to_original
 from shapely.geometry import LineString
-
+import logging
 
 class LineSelectTool(QgsMapTool):
     line_clicked = pyqtSignal(str)
@@ -27,7 +27,7 @@ class LineSelectTool(QgsMapTool):
             if layer.type() == QgsMapLayer.VectorLayer and layer.geometryType() == QGis.Line:
                 for feat in layer.getFeatures(QgsFeatureRequest(rect)):
                     if feat.geometry().intersects(rect_geom) and feat.geometry().length() > 0:
-                        print "found line in ", layer.name()
+                        logging.info('found line in {}'.format(layer.name()))
                         self.line_clicked.emit(QgsGeometry.exportToWkt(feat.geometry()))
                         return
         # emit a small linestring in the x direction

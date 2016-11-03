@@ -2,13 +2,12 @@
 
 from qgis.core import *
 from qgis.gui import *
-
+import logging
 
 def is_layer_projected_in_section(layer_id, section_id):
     layers = QgsMapLayerRegistry.instance().mapLayers()
-    print layer_id
+
     for layer in layers:
-        print layer
         if layers[layer].customProperty("section_id") == section_id and layers[layer].customProperty("projected_layer") == layer_id:
             return True
     return False
@@ -27,8 +26,7 @@ def projected_feature_to_original(source_layer, feature):
                 QgsFeatureRequest().setFilterExpression ( u'"id" = {0}'.format(source_id)))
         return it.next()
     except Exception as e:
-        print e
-        print 'Failed to lookup id {} in layer {}'.format(source_id, source_layer.id())
+        logging.error('Failed to lookup id {} in layer {}'.format(source_id, source_layer.id()))
         return None
 
 

@@ -8,6 +8,7 @@ from shapely.ops import transform
 
 from .helpers import projected_feature_to_original
 from operator import xor
+import logging
 
 def hasZ(layer):
     """test if layer has z, necessary because the wkbType returned by lyers in QGSI 2.16
@@ -41,7 +42,7 @@ class Layer(object):
         if not section.is_valid:
             return None
 
-        print "projecting ", self.source_layer.name(), self.projected_layer.geometryType()
+        logging.debug('projecting {} (geom={})'.format(self.source_layer.name(), self.projected_layer.geometryType()))
 
         source = self.source_layer
         line = section.line
@@ -69,7 +70,7 @@ class Layer(object):
         if edit is None:
             return
 
-        print "{} will commit changes".format(self.projected_layer.id())
+        logging.debug('{} will commit changes'.format(self.projected_layer.id()))
         self.source_layer.beginEditCommand('unproject transformation')
 
         for i in edit.changedGeometries():
@@ -93,7 +94,7 @@ class Layer(object):
 
         self.skip_selection_signal = True
 
-        print '>>> synchronize_selection_source_to_proj {}'.format(len(selected_ids))
+        logging.debug('>>> synchronize_selection_source_to_proj {}'.format(len(selected_ids)))
         if len(selected_ids) == 0:
             self.projected_layer.removeSelection()
         else:
@@ -106,7 +107,7 @@ class Layer(object):
             # Change selection in one call to no cause infinite ping-pong
             self.projected_layer.modifySelection(selected_ids, deselected_ids)
 
-        print '<<< synchronize_selection_source_to_proj {}'.format(len(selected_ids))
+        logging.debug('<<< synchronize_selection_source_to_proj {}'.format(len(selected_ids)))
         self.skip_selection_signal = False
 
     def synchronize_selection_proj_to_source(self):
@@ -134,10 +135,10 @@ class Layer(object):
                 else:
                     deselect += [g.id()]
 
-        print '>>> synchronize_selection_proj_to_source [{}] -> [{}, {}]'.format(len(selected_ids), len(select), len(deselect))
+        logging.debug('>>> synchronize_selection_proj_to_source [{}] -> [{}, {}]'.format(len(selected_ids), len(select), len(deselect)))
         if len(select) > 0 or len(deselect) > 0:
             self.source_layer.modifySelection(select, deselect)
-        print '<<< synchronize_selection_proj_to_source [{}] -> [{}, {}]'.format(len(selected_ids), len(select), len(deselect))
+        logging.debug('<<< synchronize_selection_proj_to_source [{}] -> [{}, {}]'.format(len(selected_ids), len(select), len(deselect)))
 
         self.skip_selection_signal = False
 

@@ -13,7 +13,7 @@ from .section_tools import SelectionTool, MoveFeatureTool
 from .action_state_helper import ActionStateHelper
 
 from math import sqrt
-
+import logging
 
 class Canvas(QgsMapCanvas):
 
@@ -107,21 +107,22 @@ class Canvas(QgsMapCanvas):
         self.refresh()
 
     def z_autoscale(self, enabled):
+
         ext = self.extent()
         smin, smax = ext.xMinimum(), ext.xMaximum()
         ztmin, ztmax = self.__section.z_range(smin, smax)
-        print "z range", ztmin, ztmax
+        logging.debug('z range {};{}'.format(ztmin, ztmax))
         if ztmin == ztmax:
             return
         dzt = ztmax - ztmin
 
         zmin, zmax = ext.yMinimum(), ext.yMaximum()
-        print "ext", smin, zmin, smax, zmax
+        logging.debug('ext {} {} {} {}'.format(smin, zmin, smax, zmax))
         dz = zmax - zmin
         fct = 1.0 if not enabled else dz/dzt
         self.__section.set_z_scale(fct)
-        print "new ext", smin, ztmin, smax, ztmax
-        print "scaling by", fct
+        logging.debug('new ext  {} {} {} {}'.format(smin, ztmin, smax, ztmax))
+        logging.debug('scaling by {}'.format(fct))
         self.setExtent(QgsRectangle(smin, ztmin*fct, smax, ztmax*fct))
         self.refresh()
 
@@ -167,7 +168,6 @@ class Canvas(QgsMapCanvas):
         if currentLayer is None:
             self.__update_layer_action_states()
         else:
-            print checked
             if checked:
                 if not currentLayer.isReadOnly():
                     currentLayer.startEditing()
@@ -175,7 +175,6 @@ class Canvas(QgsMapCanvas):
                 if currentLayer.isModified():
                     res = QMessageBox.information(None, "Stop editing", "Do you want to save the changes to layer {}?".format(currentLayer.name()), QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
 
-                    print res
                     if res == QMessageBox.Cancel:
                         return
                     elif res == QMessageBox.Discard:
@@ -189,9 +188,7 @@ class Canvas(QgsMapCanvas):
 
 
     def __update_layer_action_states(self):
-
         currentLayer = self.currentLayer()
-        print '__update_layer_action_states', currentLayer
 
         for action in self.section_actions:
             if 'layer_state' in action:
