@@ -26,6 +26,7 @@ class Section(QObject):
         self.__z_scale = 1
         self.__points = []
         self.__projections = {}
+        self.__enabled = True
 
         # in case of reload, or if a project is already opend with layers
         # that belong to this section
@@ -135,6 +136,9 @@ class Section(QObject):
         self.changed.emit(self.__line.wkt if self.__line else None, self.__width)
 
     def update_projections(self, sourceId):
+        if not self.__enabled:
+            return
+
         self.__points = []
         for p in self.__projections[sourceId]['layers']:
             p.apply(self, True)
@@ -245,6 +249,12 @@ class Section(QObject):
     def projections_of(self, layer_id):
         return self.__projections[layer_id]['layers'] if layer_id in self.__projections else []
 
+    def disable(self):
+        self.__enabled = False
+
+    def enable(self):
+        self.__enabled = True
+
     def __getattr__(self, name):
         if name == "line":
             return self.__line
@@ -256,4 +266,6 @@ class Section(QObject):
             return self.line is not None
         elif name == "z_scale":
             return self.__z_scale
+        elif name == "enabled":
+            return self.__enabled
         raise AttributeError(name)
