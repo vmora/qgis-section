@@ -14,8 +14,8 @@
    viewBox="0 0 30 30"
    id="svg2"
    version="1.1"
-   inkscape:version="0.91 r13725"
-   sodipodi:docname="select_line.svg">
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="9_select_line.svg">
   <defs
      id="defs4" />
   <sodipodi:namedview
@@ -26,17 +26,17 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="11.2"
-     inkscape:cx="2.6670284"
+     inkscape:cx="-13.627614"
      inkscape:cy="10.899389"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
      units="px"
      borderlayer="true"
-     inkscape:window-width="1366"
-     inkscape:window-height="725"
-     inkscape:window-x="0"
-     inkscape:window-y="25"
+     inkscape:window-width="1920"
+     inkscape:window-height="1180"
+     inkscape:window-x="1918"
+     inkscape:window-y="-3"
      inkscape:window-maximized="1">
     <inkscape:grid
        type="xygrid"
@@ -60,7 +60,7 @@
      id="layer1"
      transform="translate(0,-1022.3622)">
     <path
-       style="fill:none;fill-rule:evenodd;stroke:#2ac32a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:none;fill-rule:evenodd;stroke:#3788da;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        d="m 2.2321429,1050.3086 8.3928571,-3.125 3.571429,-16.3393 13.660714,-4.4642"
        id="path4153"
        inkscape:connector-curvature="0"

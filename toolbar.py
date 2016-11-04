@@ -31,7 +31,7 @@ class Toolbar(QToolBar):
 
         icon = lambda name: QIcon(os.path.join(os.path.dirname(__file__), 'icons', name))
 
-        self.addAction('axis').triggered.connect(self.__add_axis)
+        self.addAction(icon('axis_layer.svg'), 'axis').triggered.connect(self.__add_axis)
 
 
         add_projected_layer_action = self.addAction(icon('add_layer.svg'), 'add projected layer')
